@@ -59,6 +59,14 @@ Arsitektur alur request utama:
 
 Browser -> Route -> Middleware -> Controller -> Service/Model -> Database -> Controller -> View/Redirect -> Browser
 
+## Instalasi dan Deployment
+Panduan lengkap tersedia di [DEPLOYMENT.md](DEPLOYMENT.md), meliputi kebutuhan sistem, instalasi lokal, konfigurasi produksi, koneksi database MySQL, permission storage, queue worker, HTTPS, dan checklist keamanan.
+
+Ringkasan singkat:
+- Pengembangan lokal: salin `.env.development.example` menjadi `.env` (SQLite, `APP_DEBUG=true`).
+- Produksi: salin `.env.example` menjadi `.env` (MySQL, `APP_DEBUG=false`, `APP_ENV=production`, `APP_TIMEZONE=Asia/Jakarta`), lalu jalankan `php artisan key:generate --force`, `php artisan migrate --force`, `php artisan db:seed --force`, dan `php artisan optimize`.
+- Ganti password akun bawaan (`admin`, `kasir`, `operator`) sebelum aplikasi dipakai.
+
 ## Struktur File Utama
 - routes/web.php -> definisi semua route publik dan route terproteksi.
 - app/Http/Controllers/AuthController.php -> login/logout + lock account.

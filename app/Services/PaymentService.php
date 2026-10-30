@@ -21,6 +21,10 @@ class PaymentService
         return \Illuminate\Support\Facades\DB::transaction(function () use ($order, $data) {
             $amount           = (float) $data['amount'];
             $remainingBalance = $this->remainingBalance($order);
+            // Reject transfer payments that exceed the remaining balance to prevent over‑payment
+            if ($data['method'] !== 'tunai' && $amount > $remainingBalance) {
+                throw new \InvalidArgumentException('Jumlah transfer melebihi sisa jumlah tagihan.');
+            }
             $changeAmount     = $this->calculateChangeFor($data['method'], $amount, $remainingBalance);
 
             $payment = Payment::create([

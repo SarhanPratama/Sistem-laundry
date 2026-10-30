@@ -13,7 +13,7 @@
         .header p  { font-size: 11px; color: #555; margin-top: 4px; }
         .section-title { font-size: 13px; font-weight: bold; color: #1d4ed8; border-left: 4px solid #1d4ed8; padding-left: 8px; margin: 20px 0 10px; }
         .summary-grid { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-        .summary-grid td { width: 25%; padding: 10px 12px; border: 1px solid #e5e7eb; vertical-align: top; }
+        .summary-grid td { width: 33.33%; padding: 10px 12px; border: 1px solid #e5e7eb; vertical-align: top; }
         .card-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
         .card-value { font-size: 18px; font-weight: bold; margin-top: 4px; }
         .card-green  { color: #16a34a; }
@@ -46,9 +46,19 @@
     <table class="summary-grid">
         <tr>
             <td>
-                <div class="card-label">Total Pendapatan</div>
-                <div class="card-value card-green">Rp {{ number_format($revenueData['total'], 0, ',', '.') }}</div>
+                <div class="card-label">Nilai Order</div>
+                <div class="card-value card-blue">Rp {{ number_format($orderValueData['total'], 0, ',', '.') }}</div>
             </td>
+            <td>
+                <div class="card-label">Kas Diterima</div>
+                <div class="card-value card-green">Rp {{ number_format($cashFlowData['total'], 0, ',', '.') }}</div>
+            </td>
+            <td>
+                <div class="card-label">Piutang</div>
+                <div class="card-value" style="color:#d97706;">Rp {{ number_format($receivables['outstanding'], 0, ',', '.') }}</div>
+            </td>
+        </tr>
+        <tr>
             <td>
                 <div class="card-label">Total Order</div>
                 <div class="card-value card-blue">{{ $orderSummary['total'] }}</div>
@@ -65,39 +75,48 @@
     </table>
 
     <div class="section-title">
-        Laporan Pendapatan
+        Nilai Order &amp; Kas Diterima
         @if($period === 'daily') (Harian)
         @elseif($period === 'weekly') (Mingguan)
         @else (Bulanan)
         @endif
     </div>
 
-    @if(empty($revenueData['data']))
-        <p style="color:#6b7280; font-size:11px;">Tidak ada data pendapatan pada periode ini.</p>
+    @if($periodKeys->isEmpty())
+        <p style="color:#6b7280; font-size:11px;">Tidak ada data pada periode ini.</p>
     @else
         <table class="data-table">
             <thead>
                 <tr>
                     <th>Periode</th>
-                    <th class="right">Pendapatan</th>
+                    <th class="right">Nilai Order</th>
+                    <th class="right">Kas Diterima</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($revenueData['data'] as $periodKey => $amount)
+                @foreach($periodKeys as $periodKey)
                     <tr>
                         <td>{{ $periodKey }}</td>
-                        <td class="right">Rp {{ number_format($amount, 0, ',', '.') }}</td>
+                        <td class="right">Rp {{ number_format($orderValueData['data'][$periodKey] ?? 0, 0, ',', '.') }}</td>
+                        <td class="right">Rp {{ number_format($cashFlowData['data'][$periodKey] ?? 0, 0, ',', '.') }}</td>
                     </tr>
                 @endforeach
             </tbody>
             <tfoot>
                 <tr>
                     <td>Total</td>
-                    <td class="right">Rp {{ number_format($revenueData['total'], 0, ',', '.') }}</td>
+                    <td class="right" style="color:#1d4ed8;">Rp {{ number_format($orderValueData['total'], 0, ',', '.') }}</td>
+                    <td class="right">Rp {{ number_format($cashFlowData['total'], 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         </table>
     @endif
+
+    <p style="font-size:10px; color:#6b7280; margin-bottom:10px;">
+        Piutang: Rp {{ number_format($receivables['outstanding'], 0, ',', '.') }}
+        dari {{ $receivables['orders_with_balance'] }} order yang belum lunas.
+        Nilai order dihitung dari tanggal order masuk; kas diterima dihitung dari tanggal pembayaran.
+    </p>
 
     <div class="section-title">Layanan Terpopuler</div>
 
@@ -111,7 +130,7 @@
                     <th>Nama Layanan</th>
                     <th class="right">Jumlah Pesanan</th>
                     <th class="right">Total Qty</th>
-                    <th class="right">Total Pendapatan</th>
+                    <th class="right">Nilai Order</th>
                 </tr>
             </thead>
             <tbody>

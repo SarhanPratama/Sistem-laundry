@@ -62,11 +62,21 @@
     </div>
 
     {{-- Summary Cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div class="bg-white shadow rounded-lg p-5">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Pendapatan</p>
-            <p class="text-2xl font-bold text-green-600">Rp {{ number_format($revenueData['total'], 0, ',', '.') }}</p>
-            <p class="text-xs text-gray-400 mt-1">Order lunas dalam periode</p>
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Nilai Order</p>
+            <p class="text-2xl font-bold text-blue-600">Rp {{ number_format($orderValueData['total'], 0, ',', '.') }}</p>
+            <p class="text-xs text-gray-400 mt-1">Total tagihan order pada periode</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Kas Diterima</p>
+            <p class="text-2xl font-bold text-green-600">Rp {{ number_format($cashFlowData['total'], 0, ',', '.') }}</p>
+            <p class="text-xs text-gray-400 mt-1">Pembayaran masuk (tanggal bayar)</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-5">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Piutang</p>
+            <p class="text-2xl font-bold text-amber-600">Rp {{ number_format($receivables['outstanding'], 0, ',', '.') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ $receivables['orders_with_balance'] }} order belum lunas</p>
         </div>
         <div class="bg-white shadow rounded-lg p-5">
             <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Order</p>
@@ -113,10 +123,10 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {{-- Revenue Table --}}
+        {{-- Nilai Order & Kas Diterima Table --}}
         <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-200">
-                <h2 class="text-base font-semibold text-gray-800">Laporan Pendapatan</h2>
+                <h2 class="text-base font-semibold text-gray-800">Nilai Order &amp; Kas Diterima</h2>
                 <p class="text-xs text-gray-500 mt-0.5">
                     {{ $startDate }} s/d {{ $endDate }} &mdash;
                     @if($period === 'daily') Harian
@@ -124,30 +134,36 @@
                     @else Bulanan
                     @endif
                 </p>
+                <p class="text-xs text-gray-400 mt-1">
+                    Nilai order dihitung dari tanggal order masuk; kas diterima dihitung dari tanggal pembayaran.
+                </p>
             </div>
-            @if(empty($revenueData['data']))
-                <div class="text-center py-10 text-gray-400 text-sm">Tidak ada data pendapatan.</div>
+            @if($periodKeys->isEmpty())
+                <div class="text-center py-10 text-gray-400 text-sm">Tidak ada data pada periode ini.</div>
             @else
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periode</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Pendapatan</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nilai Order</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Kas Diterima</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($revenueData['data'] as $periodKey => $amount)
+                            @foreach($periodKeys as $periodKey)
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $periodKey }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-900 text-right font-medium">Rp {{ number_format($amount, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-900 text-right font-medium">Rp {{ number_format($orderValueData['data'][$periodKey] ?? 0, 0, ',', '.') }}</td>
+                                    <td class="px-4 py-3 text-sm text-green-700 text-right font-medium">Rp {{ number_format($cashFlowData['data'][$periodKey] ?? 0, 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot class="bg-gray-50">
                             <tr>
                                 <td class="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
-                                <td class="px-4 py-3 text-sm font-bold text-green-600 text-right">Rp {{ number_format($revenueData['total'], 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-sm font-bold text-blue-700 text-right">Rp {{ number_format($orderValueData['total'], 0, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-sm font-bold text-green-600 text-right">Rp {{ number_format($cashFlowData['total'], 0, ',', '.') }}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -172,7 +188,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Layanan</th>
                                 <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Pesanan</th>
                                 <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Pendapatan</th>
+                                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nilai Order</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">

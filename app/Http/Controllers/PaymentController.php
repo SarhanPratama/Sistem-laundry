@@ -71,7 +71,12 @@ class PaymentController extends Controller
                 ->with('overpayment_amount', $amount - $remaining);
         }
 
-        $payment = $this->paymentService->recordPayment($order, $validated);
+        try {
+            $payment = $this->paymentService->recordPayment($order, $validated);
+        } catch (\InvalidArgumentException $e) {
+            // Show a notification instead of a Laravel error page
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         $success = 'Pembayaran berhasil dicatat.';
 
