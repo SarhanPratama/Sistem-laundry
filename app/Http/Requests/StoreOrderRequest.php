@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Services\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreOrderRequest extends FormRequest
 {
@@ -13,13 +15,25 @@ class StoreOrderRequest extends FormRequest
 
     public function rules(): array
     {
+        $customerExists = Rule::exists('customers', 'id');
+        $serviceExists = Rule::exists('services', 'id');
+
+        if (TenantContext::hasTenant()) {
+            $tenantId = TenantContext::getTenantId();
+            $customerExists->where('tenant_id', $tenantId);
+            $serviceExists->where('tenant_id', $tenantId);
+        }
+
         return [
-            'customer_id'          => ['required', 'exists:customers,id'],
+            'customer_id'          => ['required', $customerExists],
             'received_date'        => ['required', 'date'],
             'estimated_done_date'  => ['required', 'date', 'after_or_equal:received_date'],
             'items'                => ['required', 'array', 'min:1'],
-            'items.*.service_id'   => ['required', 'exists:services,id'],
+            'items.*.service_id'   => ['required', $serviceExists],
             'items.*.quantity'     => ['required', 'numeric', 'min:0.01'],
+            'pay_now'              => ['nullable', 'boolean'],
+            'payment_method'       => ['nullable', 'required_if:pay_now,1', 'in:tunai,transfer'],
+            'payment_amount'       => ['nullable', 'required_if:pay_now,1', 'numeric', 'min:0.01'],
         ];
     }
 

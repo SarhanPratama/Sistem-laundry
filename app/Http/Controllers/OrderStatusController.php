@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderStatusLog;
+use App\Models\Rack;
 use App\Services\NotificationService;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class OrderStatusController extends Controller
@@ -34,40 +37,19 @@ class OrderStatusController extends Controller
 
     public function index(Request $request)
     {
-        $query = Order::with(['customer'])
+        $query = Order::with(['customer', 'rack'])
             ->where('is_cancelled', false);
 
-        $status = $request->input('status');
-
-        if ($status) {
-            // Filter eksplisit dihormati, termasuk `selesai` untuk melihat histori
-            $query->where('status', $status);
-        } else {
-            // Tanpa filter, papan kerja hanya menampilkan order yang masih berjalan
-            $query->where('status', '!=', self::PICKUP_STATUS);
-        }
-
-        if ($dateFrom = $request->input('date_from')) {
-            $query->whereDate('received_date', '>=', $dateFrom);
-        }
-
-        if ($dateTo = $request->input('date_to')) {
-            $query->whereDate('received_date', '<=', $dateTo);
-        }
-
-        if ($customerName = $request->input('customer_name')) {
-            $query->whereHas('customer', function ($q) use ($customerName) {
-                $q->where('full_name', 'LIKE', '%' . $customerName . '%');
-            });
-        }
-
-        $orders   = $query->latest()->paginate(10)->withQueryString();
+        $orders = $query->latest()->get();
         $statuses = self::STATUS_SEQUENCE;
+        $racks = Rack::where('is_active', true)->orderBy('name')->get();
 
-        // Admin hanya memantau, tidak mengubah status order
-        $isReadOnly = ! auth()->user()->hasRole(['operator', 'kasir']);
+        $user = auth()->user();
+        $isReadOnly = $user->role !== 'admin'
+            && !in_array($user->role, ['operator', 'kasir'], true)
+            && ! $user->hasTenantPermission('update-order-status');
 
-        return view('orders.status', compact('orders', 'statuses', 'isReadOnly'));
+        return view('orders.status', compact('orders', 'statuses', 'isReadOnly', 'racks'));
     }
 
     public function update(Request $request, Order $order)
@@ -78,12 +60,15 @@ class OrderStatusController extends Controller
 
         $newStatus = $request->input('status');
 
-        // Produksi (diterima -> siap_diambil) hanya oleh operator,
-        // penutupan order (siap_diambil -> selesai) hanya oleh kasir.
-        $requiredRole = $this->requiredRoleFor($newStatus);
+        $user = auth()->user();
+        $isCustomRole = !in_array($user->role, ['admin', 'kasir', 'operator'], true);
 
-        if (!auth()->user()->hasRole($requiredRole)) {
-            abort(403, $requiredRole === 'kasir'
+        if ($isCustomRole) {
+            if (!$user->hasTenantPermission('update-order-status')) {
+                abort(403, 'Anda tidak memiliki tugas untuk memperbarui status order.');
+            }
+        } elseif ($user->role !== 'admin' && !$user->hasRole($this->requiredRoleFor($newStatus))) {
+            abort(403, $newStatus === self::PICKUP_STATUS
                 ? 'Order hanya dapat ditandai selesai oleh kasir ketika pelanggan mengambil barang.'
                 : 'Tahapan produksi hanya dapat diubah oleh operator.');
         }
@@ -112,8 +97,12 @@ class OrderStatusController extends Controller
         }
 
         if ($newStatus === 'siap_diambil') {
+            $tenantId = TenantContext::getTenantId();
             $request->validate([
-                'rack_id' => 'required|exists:racks,id',
+                'rack_id' => [
+                    'required',
+                    Rule::exists('racks', 'id')->where(fn ($q) => $tenantId ? $q->where('tenant_id', $tenantId) : $q),
+                ],
             ], [
                 'rack_id.required' => 'Anda harus menentukan Lokasi Rak saat mengubah status ke Siap Diambil.',
                 'rack_id.exists' => 'Lokasi Rak yang dipilih tidak valid.'
@@ -156,5 +145,31 @@ class OrderStatusController extends Controller
         }
 
         return back()->with('success', 'Status order berhasil diperbarui menjadi "' . ucfirst(str_replace('_', ' ', $newStatus)) . '".');
+    }
+
+    /**
+     * Pindahkan / perbarui lokasi rak penyimpanan untuk order yang berstatus siap_diambil.
+     */
+    public function updateRack(Request $request, Order $order)
+    {
+        if ($order->is_cancelled || $order->status !== 'siap_diambil') {
+            return back()->with('error', 'Lokasi rak hanya dapat diubah pada order yang berstatus Siap Diambil.');
+        }
+
+        $tenantId = TenantContext::getTenantId();
+        $validated = $request->validate([
+            'rack_id' => [
+                'required',
+                Rule::exists('racks', 'id')->where(fn ($q) => $tenantId ? $q->where('tenant_id', $tenantId) : $q),
+            ],
+        ], [
+            'rack_id.required' => 'Silakan pilih Lokasi Rak penyimpanan.',
+            'rack_id.exists' => 'Lokasi Rak yang dipilih tidak valid.',
+        ]);
+
+        $order->update(['rack_id' => $validated['rack_id']]);
+        $rack = Rack::find($validated['rack_id']);
+
+        return back()->with('success', 'Lokasi rak berhasil diperbarui menjadi "' . ($rack->name ?? '-') . '".');
     }
 }

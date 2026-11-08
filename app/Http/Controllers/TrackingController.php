@@ -24,10 +24,19 @@ class TrackingController extends Controller
             'order_number' => 'required|string'
         ]);
 
-        $order = Order::where('order_number', $request->order_number)->first();
+        $normalized = strtoupper(trim($request->order_number));
+
+        $order = Order::withoutGlobalScopes()
+            ->where(function ($query) use ($normalized) {
+                $query->where('order_number', $normalized)
+                      ->orWhereRaw('UPPER(order_number) = ?', [$normalized]);
+            })
+            ->first();
 
         if (!$order) {
-            return back()->with('error', 'Pesanan tidak ditemukan. Silakan periksa kembali nomor pesanan Anda.');
+            return back()
+                ->withInput()
+                ->with('error', 'Pesanan dengan nomor "' . $normalized . '" tidak ditemukan. Pastikan kode transaksi sesuai dengan yang tertera pada struk laundry Anda.');
         }
 
         return redirect()->route('tracking.show', $order->order_number);
@@ -39,9 +48,15 @@ class TrackingController extends Controller
      */
     public function show($order_number)
     {
-        // Cari order berdasarkan nomor pesanan (order_number)
-        $order = Order::where('order_number', $order_number)
-            ->with(['customer', 'items', 'payments', 'statusLogs', 'rack'])
+        $normalized = strtoupper(trim($order_number));
+
+        // Cari order berdasarkan nomor pesanan (order_number) across platform safely
+        $order = Order::withoutGlobalScopes()
+            ->where(function ($query) use ($order_number, $normalized) {
+                $query->where('order_number', $order_number)
+                      ->orWhereRaw('UPPER(order_number) = ?', [$normalized]);
+            })
+            ->with(['customer', 'items.service.category', 'payments', 'statusLogs', 'rack', 'tenant'])
             ->firstOrFail();
 
         // Tentukan status icon dan warna

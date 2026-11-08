@@ -6,13 +6,19 @@ use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use Illuminate\Http\Request;
 
 class ServiceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $services = Service::with('category')->latest()->get();
-        return view('services.index', compact('services'));
+        $showTrashed = $request->boolean('trashed');
+        $trashedCount = Service::onlyTrashed()->count();
+
+        $query = $showTrashed ? Service::onlyTrashed() : Service::query();
+        $services = $query->with('category')->latest($showTrashed ? 'deleted_at' : 'created_at')->get();
+
+        return view('services.index', compact('services', 'showTrashed', 'trashedCount'));
     }
 
     public function create()
@@ -58,7 +64,16 @@ class ServiceController extends Controller
     {
         $service->delete();
         return redirect()->route('services.index')
-            ->with('success', 'Layanan berhasil dihapus.');
+            ->with('success', 'Layanan berhasil dipindahkan ke tab Terhapus.');
+    }
+
+    public function restore($id)
+    {
+        $service = Service::onlyTrashed()->findOrFail($id);
+        $service->restore();
+
+        return redirect()->route('services.index', ['trashed' => 1])
+            ->with('success', "Layanan {$service->name} berhasil dipulihkan.");
     }
 
     public function deactivate(Service $service)

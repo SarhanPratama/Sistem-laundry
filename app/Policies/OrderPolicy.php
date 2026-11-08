@@ -30,7 +30,7 @@ class OrderPolicy
     public function create(User $user): bool
     {
         // Only admin and kasir can create orders
-        return $user->hasRole(['admin', 'kasir']);
+        return $user->hasTenantPermission('manage-orders');
     }
 
     /**
@@ -39,7 +39,7 @@ class OrderPolicy
     public function update(User $user, Order $order): bool
     {
         // All authenticated users can update (change status)
-        return true;
+        return $user->hasTenantPermission('manage-orders') || $user->hasTenantPermission('update-order-status');
     }
 
     /**
@@ -48,7 +48,7 @@ class OrderPolicy
     public function delete(User $user, Order $order): bool
     {
         // Only admin can delete
-        return $user->hasRole('admin');
+        return $user->hasTenantPermission('manage-orders');
     }
 
     /**
@@ -56,7 +56,7 @@ class OrderPolicy
      */
     public function restore(User $user, Order $order): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasTenantPermission('manage-orders');
     }
 
     /**
@@ -64,6 +64,6 @@ class OrderPolicy
      */
     public function forceDelete(User $user, Order $order): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasTenantPermission('manage-orders');
     }
 }

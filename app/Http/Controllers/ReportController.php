@@ -42,6 +42,11 @@ class ReportController extends Controller
 
     public function export(Request $request)
     {
+        if (\App\Services\TenantContext::getTenant()?->currentPlan()?->slug === 'starter') {
+            return redirect()->back()
+                ->with('error', 'Fitur ekspor laporan PDF/Excel hanya tersedia pada paket Business dan Pro. Silakan upgrade paket langganan Anda.');
+        }
+
         $request->validate([
             'format' => 'required|in:pdf,excel',
             'start_date' => 'nullable|date',

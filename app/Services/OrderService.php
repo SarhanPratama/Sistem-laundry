@@ -8,18 +8,27 @@ use Carbon\Carbon;
 class OrderService
 {
     /**
-     * Generate a unique order number in the format LDR-YYYYMMDD-XXXX.
-     * The 4-digit sequential counter resets every day.
+     * Generate a unique per-tenant order number in the format {TENANT_PREFIX}-YYYYMMDD-XXXX
+     * (or LDR-YYYYMMDD-XXXX when no tenant context is active).
+     * The 4-digit sequential counter resets every day independently for each tenant.
      *
+     * @param  int|null  $tenantId
      * @return string
      */
-    public function generateOrderNumber(): string
+    public function generateOrderNumber(?int $tenantId = null): string
     {
         $today = Carbon::today()->format('Ymd');
-        $prefix = "LDR-{$today}-";
+        $tenant = $tenantId
+            ? \App\Models\Tenant::find($tenantId)
+            : (TenantContext::getTenant() ?? auth()->user()?->tenant);
 
-        // Find the highest existing counter for today
-        $lastOrder = Order::where('order_number', 'like', $prefix . '%')
+        $code = $tenant ? $tenant->order_prefix : 'LDR';
+        $prefix = "{$code}-{$today}-";
+
+        // Find the highest existing counter for today for this specific tenant prefix
+        $lastOrder = Order::withoutGlobalScopes()
+            ->withTrashed()
+            ->where('order_number', 'like', $prefix . '%')
             ->orderBy('order_number', 'desc')
             ->first();
 
@@ -30,7 +39,7 @@ class OrderService
             $nextCounter = 1;
         }
 
-        return $prefix . str_pad($nextCounter, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string) $nextCounter, 4, '0', STR_PAD_LEFT);
     }
 
     /**

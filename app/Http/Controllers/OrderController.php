@@ -9,12 +9,16 @@ use App\Models\OrderStatusLog;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Services\OrderService;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class OrderController extends Controller
 {
-    public function __construct(private OrderService $orderService) {}
+    public function __construct(
+        private OrderService $orderService,
+        private PaymentService $paymentService
+    ) {}
 
     public function index(Request $request)
     {
@@ -71,58 +75,80 @@ class OrderController extends Controller
         // Only admin and kasir can create orders
         Gate::authorize('create', Order::class);
 
-        $order = \Illuminate\Support\Facades\DB::transaction(function () use ($request) {
-            $orderNumber = $this->orderService->generateOrderNumber();
+        $recordedPayment = null;
 
-            $order = Order::create([
-                'order_number'        => $orderNumber,
-                'customer_id'         => $request->customer_id,
-                'created_by'          => auth()->id(),
-                'status'              => 'diterima',
-                'payment_status'      => 'belum_bayar',
-                'received_date'       => $request->received_date,
-                'estimated_done_date' => $request->estimated_done_date,
-                'total_cost'          => 0,
-                'amount_paid'         => 0,
-            ]);
+        try {
+            $order = \Illuminate\Support\Facades\DB::transaction(function () use ($request, &$recordedPayment) {
+                $orderNumber = $this->orderService->generateOrderNumber();
 
-            $itemsForTotal = [];
-
-            foreach ($request->items as $item) {
-                $service   = Service::findOrFail($item['service_id']);
-                $unitPrice = $service->price_per_unit;
-                $subtotal  = $item['quantity'] * $unitPrice;
-
-                $order->items()->create([
-                    'service_id' => $item['service_id'],
-                    'quantity'   => $item['quantity'],
-                    'unit_price' => $unitPrice,
-                    'subtotal'   => $subtotal,
+                $order = Order::create([
+                    'order_number'        => $orderNumber,
+                    'customer_id'         => $request->customer_id,
+                    'created_by'          => auth()->id(),
+                    'status'              => 'diterima',
+                    'payment_status'      => 'belum_bayar',
+                    'received_date'       => $request->received_date,
+                    'estimated_done_date' => $request->estimated_done_date,
+                    'total_cost'          => 0,
+                    'amount_paid'         => 0,
                 ]);
 
-                $itemsForTotal[] = [
-                    'quantity'   => $item['quantity'],
-                    'unit_price' => $unitPrice,
-                ];
+                $itemsForTotal = [];
+
+                foreach ($request->items as $item) {
+                    $service   = Service::findOrFail($item['service_id']);
+                    $unitPrice = $service->price_per_unit;
+                    $subtotal  = $item['quantity'] * $unitPrice;
+
+                    $order->items()->create([
+                        'service_id' => $item['service_id'],
+                        'quantity'   => $item['quantity'],
+                        'unit_price' => $unitPrice,
+                        'subtotal'   => $subtotal,
+                    ]);
+
+                    $itemsForTotal[] = [
+                        'quantity'   => $item['quantity'],
+                        'unit_price' => $unitPrice,
+                    ];
+                }
+
+                $order->update([
+                    'total_cost' => $this->orderService->calculateTotal($itemsForTotal),
+                ]);
+
+                // Log initial status
+                OrderStatusLog::create([
+                    'order_id'   => $order->id,
+                    'status'     => 'diterima',
+                    'changed_by' => auth()->id(),
+                    'changed_at' => now(),
+                ]);
+
+                // Optional 1-Step Payment at Order Creation
+                if ($request->boolean('pay_now') && (float) $request->input('payment_amount') > 0) {
+                    $recordedPayment = $this->paymentService->recordPayment($order->fresh(), [
+                        'method' => $request->input('payment_method', 'tunai'),
+                        'amount' => (float) $request->input('payment_amount'),
+                    ]);
+                }
+
+                return $order->fresh();
+            });
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $successMsg = 'Order berhasil dibuat dengan nomor ' . $order->order_number . '.';
+        if ($recordedPayment) {
+            $successMsg .= ' Pembayaran tercatat (' . strtoupper($order->payment_status) . ').';
+            if ($recordedPayment->change_amount > 0) {
+                $successMsg .= ' Kembalian Rp ' . number_format($recordedPayment->change_amount, 0, ',', '.') . '.';
             }
-
-            $order->update([
-                'total_cost' => $this->orderService->calculateTotal($itemsForTotal),
-            ]);
-
-            // Log initial status
-            OrderStatusLog::create([
-                'order_id'   => $order->id,
-                'status'     => 'diterima',
-                'changed_by' => auth()->id(),
-                'changed_at' => now(),
-            ]);
-
-            return $order;
-        });
+        }
 
         return redirect()->route('orders.show', $order)
-            ->with('success', 'Order berhasil dibuat dengan nomor ' . $order->order_number . '.');
+            ->with('success', $successMsg);
     }
 
     public function show(Order $order)

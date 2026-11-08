@@ -26,6 +26,8 @@ class PaymentService
                 throw new \InvalidArgumentException('Jumlah transfer melebihi sisa jumlah tagihan.');
             }
             $changeAmount     = $this->calculateChangeFor($data['method'], $amount, $remainingBalance);
+            $netApplied       = $amount - $changeAmount;
+            $isDp             = $netApplied > 0 && $netApplied < $remainingBalance;
 
             $payment = Payment::create([
                 'order_id'      => $order->id,
@@ -33,7 +35,7 @@ class PaymentService
                 'method'        => $data['method'],
                 'amount'        => $amount,
                 'change_amount' => $changeAmount,
-                'is_dp'         => $data['is_dp'] ?? false,
+                'is_dp'         => $isDp,
                 'paid_at'       => now(),
             ]);
 

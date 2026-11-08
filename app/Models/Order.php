@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
         'order_number',
         'customer_id',
         'created_by',
@@ -46,7 +49,7 @@ class Order extends Model
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     public function items(): HasMany
@@ -61,17 +64,17 @@ class Order extends Model
 
     public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
     }
 
     public function completedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'completed_by');
+        return $this->belongsTo(User::class, 'completed_by')->withTrashed();
     }
 
     public function cancelledBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'cancelled_by');
+        return $this->belongsTo(User::class, 'cancelled_by')->withTrashed();
     }
 
     public function statusLogs(): HasMany
@@ -81,7 +84,7 @@ class Order extends Model
 
     public function rack(): BelongsTo
     {
-        return $this->belongsTo(Rack::class, 'rack_id');
+        return $this->belongsTo(Rack::class, 'rack_id')->withTrashed();
     }
 
     /**

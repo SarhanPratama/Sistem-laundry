@@ -17,6 +17,9 @@
     <div class="bg-white shadow rounded-lg p-6">
         <form method="POST" action="{{ route('customers.store') }}">
             @csrf
+            @if(request()->boolean('from_order') || old('from_order'))
+                <input type="hidden" name="from_order" value="1">
+            @endif
 
             <div class="mb-5">
                 <label for="full_name" class="block text-sm font-medium text-gray-700 mb-1">

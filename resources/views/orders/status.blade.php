@@ -9,21 +9,21 @@
         {{-- Header --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900 tracking-tight mb-1">Order Tracking</h1>
-                <p class="text-gray-500 text-sm">Manage and monitor live laundry operations.</p>
+                <h1 class="text-2xl font-bold text-gray-900 tracking-tight mb-1">Pelacakan Status Produksi</h1>
+                <p class="text-gray-500 text-sm">Pantau dan perbarui tahap pengerjaan cucian serta lokasi rak secara langsung.</p>
             </div>
-            @role('kasir')
+            @role('kasir|admin')
                 <a href="{{ route('orders.create') }}"
                     class="inline-flex items-center justify-center gap-2 bg-[#0B57D0] hover:bg-blue-800 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition duration-200 shadow-sm w-full sm:w-auto">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    New Order
+                    Buat Order Baru
                 </a>
             @endrole
         </div>
 
-        {{-- Banner read-only untuk admin --}}
+        {{-- Banner read-only untuk role tanpa izin perubahan status --}}
         @if ($isReadOnly ?? false)
             <div class="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl flex items-start gap-3">
                 <svg class="w-5 h-5 mt-0.5 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor"
@@ -34,100 +34,15 @@
                 <div class="text-sm">
                     <p class="font-semibold">Mode pemantauan</p>
                     <p class="mt-0.5">
-                        Sebagai admin Anda dapat melihat histori dan progres status laundry, namun perubahan
-                        status tetap dilakukan operator untuk tahap produksi dan kasir saat pelanggan mengambil barang.
-                        Gunakan filter <span class="font-medium">Status &rarr; Selesai</span> untuk melihat order yang sudah
-                        diambil.
+                        Akun Anda dapat melihat histori dan progres status laundry, namun belum memiliki tugas untuk
+                        mengubah status order. Hubungi admin tenant untuk menyesuaikan akses role.
                     </p>
                 </div>
             </div>
         @endif
 
-        @if (session('success'))
-            <div class="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd"></path>
-                </svg>
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clip-rule="evenodd"></path>
-                </svg>
-                {{ session('error') }}
-            </div>
-        @endif
-
-        {{-- Filter Card --}}
-        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-8">
-            <form method="GET" action="{{ route('orders.status') }}" class="flex flex-col lg:flex-row items-end gap-5">
-
-                <div class="w-full lg:w-1/4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                    <div class="relative">
-                        <select name="status"
-                            class="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white">
-                            <option value="">All Statuses</option>
-                            @foreach ($statuses as $s)
-                                <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>
-                                    {{ ucfirst(str_replace('_', ' ', $s)) }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
-                                </path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="w-full lg:flex-1 min-w-0">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Date Range</label>
-                    <div class="flex flex-col sm:flex-row items-center gap-2">
-                        <div class="relative w-full min-w-0">
-                            <input type="date" name="date_from" value="{{ request('date_from') }}"
-                                class="w-full px-2.5 sm:px-3 py-2.5 border border-gray-300 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <span class="text-gray-400 text-xs sm:text-sm font-medium flex-shrink-0">to</span>
-                        <div class="relative w-full min-w-0">
-                            <input type="date" name="date_to" value="{{ request('date_to') }}"
-                                class="w-full px-2.5 sm:px-3 py-2.5 border border-gray-300 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="w-full lg:w-1/4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Customer Name</label>
-                    <input type="text" name="customer_name" value="{{ request('customer_name') }}"
-                        placeholder="Search customer..."
-                        class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div class="w-full lg:w-auto flex-shrink-0">
-                    <button type="submit"
-                        class="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-[#0B57D0] text-[#0B57D0] hover:bg-blue-50 font-semibold text-sm rounded-xl transition-colors bg-white">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
-                            </path>
-                        </svg>
-                        Apply Filters
-                    </button>
-                </div>
-
-            </form>
-        </div>
-
         {{-- Orders Table Card --}}
-        <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-6">
             @if ($orders->isEmpty())
                 <div class="text-center py-16 text-gray-500">
                     <svg class="mx-auto h-12 w-12 text-gray-300 mb-4" fill="none" stroke="currentColor"
@@ -136,29 +51,24 @@
                             d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
                     <p class="text-base font-medium text-gray-600">No orders found.</p>
-                    <p class="text-sm mt-1">Try adjusting your filters or create a new order.</p>
+                    <p class="text-sm mt-1">Buat order baru untuk mulai memantau proses laundry.</p>
                 </div>
             @else
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-200">
-                                <th class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white">
-                                    Order ID</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white">
-                                    Customer</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white">
-                                    Status</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white">
-                                    Date Received</th>
-                                <th class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white">
-                                    Est. Finish</th>
-                                <th
-                                    class="px-6 py-4 text-xs font-bold text-gray-800 uppercase tracking-widest bg-white text-center">
-                                    Actions</th>
+                    <table class="datatable min-w-full divide-y divide-gray-100 text-left">
+                        <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3.5">No. Order</th>
+                                <th class="px-4 py-3.5">Pelanggan</th>
+                                <th class="px-4 py-3.5">Tahap Produksi</th>
+                                <th class="px-4 py-3.5">Lokasi Rak</th>
+                                <th class="px-4 py-3.5">Status Bayar</th>
+                                <th class="px-4 py-3.5">Tgl Masuk</th>
+                                <th class="px-4 py-3.5">Estimasi Selesai</th>
+                                <th class="px-4 py-3.5 text-center no-sort">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 bg-white">
+                        <tbody class="divide-y divide-gray-100 text-sm">
                             @php
                                 $colors = [
                                     'blue' => ['bg' => 'bg-blue-100', 'text' => 'text-blue-600'],
@@ -236,19 +146,21 @@
                                             ? $statusSequence[$currentIndex + 1]
                                             : null;
 
-                                    // Produksi hanya oleh operator, pengambilan barang (selesai) hanya oleh kasir
+                                    // Admin tenant dapat menjalankan seluruh alur operasional.
                                     $isPickup = $nextStatus === 'selesai';
-                                    $canAdvance = $nextStatus !== null && ($isPickup ? $isKasir : $isOperator);
+                                    $isAdmin = auth()->user()->role === 'admin';
+                                    $canAdvance = $nextStatus !== null
+                                        && ($isAdmin || ($isPickup ? $isKasir : $isOperator));
                                 @endphp
-                                <tr class="hover:bg-gray-50/50 transition duration-150 group">
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                <tr class="hover:bg-gray-50/80 transition">
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
                                         <a href="{{ route('orders.show', $order) }}"
-                                            class="text-sm font-semibold text-[#0B57D0] hover:underline">
+                                            class="font-medium text-[#0B57D0] hover:underline">
                                             #{{ $order->order_number }}
                                         </a>
                                     </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
                                         <div class="flex items-center gap-3">
                                             <div
                                                 class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold {{ $avatarColor['bg'] }} {{ $avatarColor['text'] }}">
@@ -263,26 +175,69 @@
                                         </div>
                                     </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
                                         <span
                                             class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $status['bg'] }} {{ $status['text'] }}">
                                             {{ $status['label'] }}
                                         </span>
                                     </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <p class="text-sm text-gray-700">{{ $order->received_date->format('M d, h:i A') }}
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                        @if ($canAdvance && $nextStatus === 'siap_diambil' && isset($racks) && $racks->isNotEmpty())
+                                            <select name="rack_id" form="status-form-{{ $order->id }}" required
+                                                class="rounded-lg border-indigo-300 bg-indigo-50/60 focus:border-indigo-500 focus:ring focus:ring-indigo-200 text-xs font-bold text-indigo-900 py-1.5 px-2.5 shadow-sm cursor-pointer">
+                                                <option value="" disabled selected>&mdash; Pilih Rak * &mdash;</option>
+                                                @foreach ($racks as $rack)
+                                                    <option value="{{ $rack->id }}">
+                                                        Rak {{ $rack->name }}{{ $rack->location_description ? ' (' . $rack->location_description . ')' : '' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @elseif ($order->rack)
+                                            <span title="{{ $order->rack->location_description ?? '' }}"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-bold border border-purple-200">
+                                                Rak {{ $order->rack->name }}
+                                            </span>
+                                        @elseif ($order->status === 'selesai')
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                                                Sudah Diambil
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium">
+                                                Proses Produksi
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                        @if ($order->payment_status === 'lunas')
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
+                                                Lunas
+                                            </span>
+                                        @elseif ($order->payment_status === 'dp')
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700">
+                                                DP
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600">
+                                                Belum Bayar
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
+                                        <p class="text-sm text-gray-700">{{ $order->received_date->format('d/m/Y') }}
                                         </p>
                                     </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-4 py-3.5 whitespace-nowrap">
                                         @if ($order->estimated_done_date)
                                             @if ($order->status === 'selesai')
-                                                <p class="text-sm text-gray-500">Completed</p>
+                                                <p class="text-sm text-emerald-600 font-medium">Selesai Diambil</p>
                                             @else
                                                 <p
                                                     class="text-sm {{ $order->estimated_done_date->isPast() ? 'text-red-600 font-semibold' : 'text-gray-700' }}">
-                                                    {{ $order->estimated_done_date->isToday() ? 'Today, ' . $order->estimated_done_date->format('h:i A') : $order->estimated_done_date->format('M d, h:i A') }}
+                                                    {{ $order->estimated_done_date->isToday() ? 'Hari ini' : $order->estimated_done_date->format('d/m/Y') }}
                                                 </p>
                                             @endif
                                         @else
@@ -290,7 +245,7 @@
                                         @endif
                                     </td>
 
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <td class="px-4 py-3.5 whitespace-nowrap text-center">
                                         <div class="flex items-center justify-center gap-3">
                                             <a href="{{ route('orders.show', $order) }}" title="View Details"
                                                 class="inline-flex items-center justify-center w-8 h-8 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors">
@@ -304,8 +259,8 @@
                                                 </svg>
                                             </a>
                                             @if ($canAdvance)
-                                                @if ($nextStatus === 'siap_diambil')
-                                                    {{-- Pilih rak hanya bisa dari halaman detail order --}}
+                                                @if ($nextStatus === 'siap_diambil' && (!isset($racks) || $racks->isEmpty()))
+                                                    {{-- Jika belum ada master rak aktif, arahkan ke detail order --}}
                                                     <a href="{{ route('orders.show', $order) }}"
                                                         title="Pilih Lokasi Rak di detail order"
                                                         class="inline-flex items-center justify-center w-8 h-8 rounded bg-[#0B57D0] hover:bg-blue-800 text-white transition-colors">
@@ -316,7 +271,7 @@
                                                         </svg>
                                                     </a>
                                                 @else
-                                                    <form method="POST"
+                                                    <form id="status-form-{{ $order->id }}" method="POST"
                                                         action="{{ route('orders.status.update', $order) }}"
                                                         onsubmit="return confirm('Ubah status order {{ $order->order_number }} dari &quot;{{ $status['label'] }}&quot; menjadi &quot;{{ ucfirst(str_replace('_', ' ', $nextStatus)) }}&quot;?')">
                                                         @csrf
@@ -345,17 +300,6 @@
                     </table>
                 </div>
 
-                @if ($orders->hasPages() || $orders->total() > 0)
-                    <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between bg-white">
-                        <div class="text-sm text-gray-500">
-                            Showing {{ $orders->firstItem() ?? 0 }}-{{ $orders->lastItem() ?? 0 }} of
-                            {{ $orders->total() }} orders
-                        </div>
-                        <div>
-                            {{ $orders->links('pagination::tailwind') }}
-                        </div>
-                    </div>
-                @endif
             @endif
         </div>
     </div>

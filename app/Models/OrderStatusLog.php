@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderStatusLog extends Model
 {
+    use BelongsToTenant;
+
     public $timestamps = false;
 
-    protected $fillable = ['order_id', 'status', 'changed_by', 'changed_at'];
+    protected $fillable = ['tenant_id', 'order_id', 'status', 'changed_by', 'changed_at'];
 
     protected function casts(): array
     {
@@ -18,11 +21,11 @@ class OrderStatusLog extends Model
 
     public function order(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class)->withTrashed();
     }
 
     public function changedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->belongsTo(User::class, 'changed_by')->withTrashed();
     }
 }

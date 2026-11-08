@@ -11,10 +11,23 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: [
+            'api/billing/webhook',
+        ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\IdentifyTenant::class,
+        ]);
+
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'tenant' => \App\Http\Middleware\IdentifyTenant::class,
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'tenant.user' => \App\Http\Middleware\EnsureTenantUser::class,
+            'tenant.permission' => \App\Http\Middleware\EnsureTenantPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -38,10 +38,11 @@
                             </svg>
                             Pilih Pelanggan
                         </div>
-                        <a href="{{ route('customers.create') }}"
-                           class="text-xs text-blue-600 hover:text-blue-800 font-medium transition">
-                            Pelanggan Baru
-                        </a>
+                        <button type="button"
+                                @click="showNewCustomerModal = true"
+                                class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition">
+                            <span>+ Pelanggan Baru</span>
+                        </button>
                     </div>
 
                     {{-- Search input --}}
@@ -305,16 +306,101 @@
                         </template>
                     </div>
 
-                    {{-- Totals --}}
+                    {{-- Totals & 1-Step Payment Option --}}
                     <template x-if="items.length > 0">
-                        <div class="border-t border-gray-100 pt-4 space-y-2">
-                            <div class="flex justify-between text-sm text-gray-500">
-                                <span>Subtotal</span>
-                                <span>Rp <span x-text="formatNumber(grandTotal)"></span></span>
+                        <div class="border-t border-gray-100 pt-4 space-y-4">
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-sm text-gray-500">
+                                    <span>Subtotal</span>
+                                    <span>Rp <span x-text="formatNumber(grandTotal)"></span></span>
+                                </div>
+                                <div class="flex justify-between text-base font-bold text-gray-900 pt-1">
+                                    <span>Total Tagihan</span>
+                                    <span class="text-blue-600">Rp <span x-text="formatNumber(grandTotal)"></span></span>
+                                </div>
                             </div>
-                            <div class="flex justify-between text-base font-bold text-gray-900 pt-1">
-                                <span>Total</span>
-                                <span class="text-blue-600">Rp <span x-text="formatNumber(grandTotal)"></span></span>
+
+                            {{-- Toggle Bayar Nanti vs Bayar Sekarang / DP --}}
+                            <div class="border-t border-gray-100 pt-3">
+                                <label class="block text-xs font-semibold text-gray-700 mb-2">Pembayaran Saat Masuk</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button"
+                                            @click="payNow = false; paymentAmount = ''"
+                                            :class="!payNow ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'"
+                                            class="py-2 px-2.5 border rounded-xl text-xs transition text-center">
+                                        Bayar Nanti
+                                    </button>
+                                    <button type="button"
+                                            @click="payNow = true; if (!paymentAmount) paymentAmount = grandTotal"
+                                            :class="payNow ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200 text-gray-600 hover:bg-gray-50'"
+                                            class="py-2 px-2.5 border rounded-xl text-xs transition text-center">
+                                        Bayar Sekarang / DP
+                                    </button>
+                                </div>
+                                <input type="hidden" name="pay_now" :value="payNow ? 1 : 0">
+                            </div>
+
+                            {{-- Panel Input Pembayaran Langsung --}}
+                            <div x-show="payNow" x-cloak class="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1.5">Metode Pembayaran</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button type="button"
+                                                @click="paymentMethod = 'tunai'"
+                                                :class="paymentMethod === 'tunai' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'"
+                                                class="py-2 rounded-lg border text-xs font-bold transition">
+                                            Tunai
+                                        </button>
+                                        <button type="button"
+                                                @click="paymentMethod = 'transfer'; paymentAmount = grandTotal"
+                                                :class="paymentMethod === 'transfer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'"
+                                                class="py-2 rounded-lg border text-xs font-bold transition">
+                                            Transfer
+                                        </button>
+                                    </div>
+                                    <input type="hidden" name="payment_method" :value="paymentMethod">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Jumlah Diterima (Rp)</label>
+                                    <input type="number" name="payment_amount" x-model="paymentAmount"
+                                           min="0" step="0.01" placeholder="0"
+                                           class="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                                    {{-- Quick Cash Buttons --}}
+                                    <div class="grid grid-cols-4 gap-1 mt-2">
+                                        <button type="button" @click="paymentAmount = grandTotal"
+                                                class="py-1 px-1.5 text-[11px] font-bold rounded border bg-white hover:bg-blue-50 text-slate-700 border-gray-200">
+                                            Uang Pas
+                                        </button>
+                                        <button type="button" @click="paymentMethod = 'tunai'; paymentAmount = 20000"
+                                                class="py-1 px-1.5 text-[11px] font-bold rounded border bg-white hover:bg-blue-50 text-slate-700 border-gray-200">
+                                            20rb
+                                        </button>
+                                        <button type="button" @click="paymentMethod = 'tunai'; paymentAmount = 50000"
+                                                class="py-1 px-1.5 text-[11px] font-bold rounded border bg-white hover:bg-blue-50 text-slate-700 border-gray-200">
+                                            50rb
+                                        </button>
+                                        <button type="button" @click="paymentMethod = 'tunai'; paymentAmount = 100000"
+                                                class="py-1 px-1.5 text-[11px] font-bold rounded border bg-white hover:bg-blue-50 text-slate-700 border-gray-200">
+                                            100rb
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Live Kembalian / Status DP --}}
+                                <div x-show="paymentMethod === 'tunai' && paymentChange > 0"
+                                     class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex justify-between items-center text-xs">
+                                    <span class="font-medium text-blue-700">Kembalian:</span>
+                                    <span class="font-bold text-blue-800">Rp <span x-text="formatNumber(paymentChange)"></span></span>
+                                </div>
+
+                                <div x-show="numericPayment > 0"
+                                     :class="numericPayment < grandTotal ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+                                     class="border rounded-lg px-3 py-2 flex justify-between items-center text-xs">
+                                    <span>Status otomatis:</span>
+                                    <span class="font-bold uppercase" x-text="numericPayment < grandTotal ? 'DP (Sisa Rp ' + formatNumber(grandTotal - numericPayment) + ')' : 'LUNAS'"></span>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -336,6 +422,50 @@
 
         </div>{{-- end grid --}}
     </form>
+
+    {{-- Modal Cepat Tambah Pelanggan Baru (Tanpa Keluar dari Halaman Order) --}}
+    <div x-show="showNewCustomerModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+         @keydown.escape.window="showNewCustomerModal = false">
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-md p-6"
+             @click.outside="showNewCustomerModal = false">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-gray-900">Tambah Pelanggan Baru</h3>
+                <button type="button" @click="showNewCustomerModal = false" class="text-gray-400 hover:text-gray-600">
+                    &times;
+                </button>
+            </div>
+            <form method="POST" action="{{ route('customers.store') }}" class="space-y-4">
+                @csrf
+                <input type="hidden" name="from_order" value="1">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Lengkap <span class="text-red-500">*</span></label>
+                    <input type="text" name="full_name" required placeholder="Contoh: Ibu Sari"
+                           class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Nomor WhatsApp / HP <span class="text-red-500">*</span></label>
+                    <input type="text" name="phone_number" required placeholder="Contoh: 08123456789"
+                           class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Alamat (Opsional)</label>
+                    <input type="text" name="address" placeholder="Contoh: Jl. Melati No. 12"
+                           class="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showNewCustomerModal = false"
+                            class="px-4 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white">
+                        Simpan &amp; Pilih Pelanggan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -351,6 +481,10 @@ function orderForm(services, customers, preselectedCustomerId, categories) {
         filteredCustomers: customers,
         selectedCustomer: null,
         showDropdown: false,
+        showNewCustomerModal: false,
+        payNow: false,
+        paymentMethod: 'tunai',
+        paymentAmount: '',
 
         // ── init ──
         init() {
@@ -367,6 +501,15 @@ function orderForm(services, customers, preselectedCustomerId, categories) {
         },
         get grandTotal() {
             return this.items.reduce((sum, i) => sum + (parseFloat(i.subtotal) || 0), 0);
+        },
+        get numericPayment() {
+            return parseFloat(this.paymentAmount) || 0;
+        },
+        get paymentChange() {
+            if (this.paymentMethod === 'tunai' && this.numericPayment > this.grandTotal) {
+                return this.numericPayment - this.grandTotal;
+            }
+            return 0;
         },
 
         // ── customer helpers ──

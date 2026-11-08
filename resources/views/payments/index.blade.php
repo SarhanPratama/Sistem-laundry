@@ -153,37 +153,27 @@
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sticky top-20"
                      x-data="{
                          method: '{{ old('method', 'tunai') }}',
-                         amount: {{ old('amount', 0) }},
+                         amount: '{{ old('amount', '') }}',
                          remaining: {{ $remaining }},
+                         get numericAmount() {
+                             return parseFloat(this.amount) || 0;
+                         },
                          get change() {
-                             if (this.method === 'tunai' && parseFloat(this.amount) > this.remaining) {
-                                 return parseFloat(this.amount) - this.remaining;
+                             if (this.method === 'tunai' && this.numericAmount > this.remaining) {
+                                 return this.numericAmount - this.remaining;
                              }
                              return 0;
+                         },
+                         get isDp() {
+                             return this.numericAmount > 0 && this.numericAmount < this.remaining;
+                         },
+                         get remainingAfter() {
+                             return Math.max(0, this.remaining - this.numericAmount);
                          },
                          fmt(val) { return 'Rp ' + Math.round(val).toLocaleString('id-ID'); }
                      }">
 
                     <h2 class="text-sm font-bold text-gray-900 mb-4">Catat Pembayaran</h2>
-
-                    {{-- Overpayment confirmation --}}
-                    @if(session('confirm_overpayment'))
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-                            <p class="text-xs font-semibold text-yellow-800 mb-1">Konfirmasi Kelebihan Bayar</p>
-                            <p class="text-xs text-yellow-700 mb-3">
-                                Jumlah melebihi sisa tagihan sebesar <strong>Rp {{ number_format(session('overpayment_amount'), 0, ',', '.') }}</strong>. Lanjutkan?
-                            </p>
-                            <form method="POST" action="{{ route('payments.store', $order) }}" class="flex gap-2">
-                                @csrf
-                                <input type="hidden" name="method" value="{{ old('method') }}">
-                                <input type="hidden" name="amount" value="{{ old('amount') }}">
-                                <input type="hidden" name="is_dp" value="{{ old('is_dp', 0) }}">
-                                <input type="hidden" name="confirmed" value="1">
-                                <button type="submit" class="flex-1 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-semibold rounded-lg transition">Ya, Lanjutkan</button>
-                                <a href="{{ route('payments.index', $order) }}" class="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition text-center">Batal</a>
-                            </form>
-                        </div>
-                    @endif
 
                     <form method="POST" action="{{ route('payments.store', $order) }}" class="space-y-4">
                         @csrf
@@ -204,7 +194,7 @@
                                         Tunai
                                     </div>
                                 </label>
-                                <label class="cursor-pointer">
+                                <label class="cursor-pointer" @click="amount = remaining">
                                     <input type="radio" name="method" value="transfer" x-model="method" class="sr-only peer"
                                            {{ old('method') === 'transfer' ? 'checked' : '' }}>
                                     <div class="flex items-center justify-center gap-1.5 py-2.5 border-2 rounded-xl text-sm font-medium transition
@@ -224,32 +214,61 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1.5">Jumlah Bayar (Rp)</label>
                             <input type="number" name="amount" x-model="amount"
-                                   value="{{ old('amount') }}"
                                    min="0" step="0.01" placeholder="0"
                                    class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 @error('amount') border-red-400 @enderror">
                             @error('amount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+
+                            {{-- Quick Cash Buttons --}}
+                            <div class="grid grid-cols-4 gap-1.5 mt-2">
+                                <button type="button" @click="amount = remaining"
+                                        :class="numericAmount === remaining ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200'"
+                                        class="py-1.5 px-2 text-xs font-bold rounded-lg border transition">
+                                    Uang Pas
+                                </button>
+                                <button type="button" @click="method = 'tunai'; amount = 20000"
+                                        :class="numericAmount === 20000 && method === 'tunai' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200'"
+                                        class="py-1.5 px-2 text-xs font-bold rounded-lg border transition">
+                                    20rb
+                                </button>
+                                <button type="button" @click="method = 'tunai'; amount = 50000"
+                                        :class="numericAmount === 50000 && method === 'tunai' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200'"
+                                        class="py-1.5 px-2 text-xs font-bold rounded-lg border transition">
+                                    50rb
+                                </button>
+                                <button type="button" @click="method = 'tunai'; amount = 100000"
+                                        :class="numericAmount === 100000 && method === 'tunai' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-700 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200'"
+                                        class="py-1.5 px-2 text-xs font-bold rounded-lg border transition">
+                                    100rb
+                                </button>
+                            </div>
                         </div>
 
                         {{-- Kembalian (tunai only) --}}
-                        <div x-show="method === 'tunai' && change > 0"
+                        <div x-show="method === 'tunai' && change > 0" x-cloak
                              class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex justify-between items-center">
-                            <span class="text-xs font-medium text-blue-700">Kembalian</span>
+                            <span class="text-xs font-medium text-blue-700">Kembalian Tunai</span>
                             <span class="text-sm font-bold text-blue-800" x-text="fmt(change)"></span>
                         </div>
 
-                        {{-- Sisa tagihan hint --}}
-                        <div class="bg-gray-50 rounded-xl px-4 py-3 flex justify-between items-center">
-                            <span class="text-xs text-gray-500">Sisa tagihan</span>
-                            <span class="text-sm font-bold text-gray-700">Rp {{ number_format($remaining, 0, ',', '.') }}</span>
+                        {{-- Deteksi Status Otomatis (DP vs Lunas) --}}
+                        <div x-show="numericAmount > 0" x-cloak
+                             :class="isDp ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'"
+                             class="border rounded-xl px-4 py-3 text-xs space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium">Status otomatis:</span>
+                                <span class="font-bold uppercase" x-text="isDp ? 'DP / Cicilan' : 'Pelunasan (Lunas)'"></span>
+                            </div>
+                            <div x-show="isDp" class="flex justify-between items-center text-[11px] opacity-90">
+                                <span>Sisa setelah bayar:</span>
+                                <span class="font-bold" x-text="fmt(remainingAfter)"></span>
+                            </div>
                         </div>
 
-                        {{-- DP checkbox --}}
-                        <label class="flex items-center gap-2.5 cursor-pointer">
-                            <input type="checkbox" name="is_dp" value="1"
-                                   {{ old('is_dp') ? 'checked' : '' }}
-                                   class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <span class="text-sm text-gray-700">Ini adalah Uang Muka (DP)</span>
-                        </label>
+                        {{-- Sisa tagihan saat ini --}}
+                        <div class="bg-gray-50 rounded-xl px-4 py-3 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Tagihan saat ini</span>
+                            <span class="text-sm font-bold text-gray-700">Rp {{ number_format($remaining, 0, ',', '.') }}</span>
+                        </div>
 
                         <button type="submit"
                                 class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition shadow-sm">
@@ -270,10 +289,6 @@
                         <p class="text-sm font-semibold text-green-700">Pembayaran Lunas</p>
                         <p class="text-xs text-gray-400 mt-1">Order ini sudah terbayar penuh.</p>
                     @endif
-                    <a href="{{ route('orders.show', $order) }}"
-                       class="mt-4 inline-block text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        ← Kembali ke Order
-                    </a>
                 </div>
             @endif
         </div>

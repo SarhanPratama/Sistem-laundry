@@ -44,6 +44,14 @@ class SettingController extends Controller
             Setting::set($key, $value);
         }
 
+        if ($tenant = \App\Services\TenantContext::getTenant()) {
+            $tenant->update([
+                'name'    => $validated['store_name'],
+                'phone'   => $validated['store_phone'] ?: $tenant->phone,
+                'address' => $validated['store_address'] ?: $tenant->address,
+            ]);
+        }
+
         return back()->with('success', 'Pengaturan identitas toko berhasil diperbarui!');
     }
 }

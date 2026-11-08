@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -198,10 +199,45 @@ test('admin dapat mengakses halaman manajemen pengguna', function () {
     \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
     \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'kasir', 'guard_name' => 'web']);
 
-    $admin = User::factory()->admin()->create();
+    $tenant = Tenant::create([
+        'name' => 'Laundry Test',
+        'slug' => 'laundry-test',
+        'status' => 'active',
+    ]);
+    $admin = User::factory()->admin()->create(['tenant_id' => $tenant->id]);
     $admin->assignRole('admin');
 
     $this->actingAs($admin)
         ->get('/users')
         ->assertStatus(200);
+});
+
+test('superadmin diarahkan ke panel SaaS saat login', function () {
+    \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+
+    $superadmin = User::factory()->create([
+        'username' => 'platform-admin',
+        'password' => Hash::make('password123'),
+        'is_superadmin' => true,
+        'tenant_id' => null,
+    ]);
+    $superadmin->assignRole('admin');
+
+    $this->post('/login', [
+        'username' => 'platform-admin',
+        'password' => 'password123',
+    ])->assertRedirect(route('saas-admin.index'));
+});
+
+test('superadmin tidak dapat mengakses fitur operasional tenant', function () {
+    \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+
+    $superadmin = User::factory()->create([
+        'is_superadmin' => true,
+        'tenant_id' => null,
+    ]);
+    $superadmin->assignRole('admin');
+
+    $this->actingAs($superadmin)->get('/service-categories')->assertForbidden();
+    $this->actingAs($superadmin)->get('/export-data')->assertForbidden();
 });

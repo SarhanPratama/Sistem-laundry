@@ -51,6 +51,27 @@
                 'running' => $runningPaid,
             ];
         });
+
+        // Format WhatsApp number & Nota message
+        $rawPhone = preg_replace('/[^0-9]/', '', $order->customer->phone_number ?? '');
+        $waPhone = str_starts_with($rawPhone, '0')
+            ? '62' . substr($rawPhone, 1)
+            : (str_starts_with($rawPhone, '62') ? $rawPhone : ($rawPhone ? '62' . $rawPhone : ''));
+        $itemLines = $order->items->map(function ($item) {
+            return '- ' . ($item->service->name ?? 'Layanan') . ' (' . $item->quantity . ' ' . ($item->service->unit ?? '') . '): Rp ' . number_format($item->subtotal, 0, ',', '.');
+        })->implode("\n");
+        $trackingUrl = route('tracking.show', $order->order_number);
+        $waText = "*NOTA LAUNDRY - " . ($appStoreName ?? 'Laundiqo') . "*\n"
+            . "No. Order: *" . $order->order_number . "*\n"
+            . "Pelanggan: " . ($order->customer->full_name ?? '-') . "\n"
+            . "Status Cucian: *" . ($statusLabels[$order->status] ?? ucfirst($order->status)) . "*\n"
+            . ($order->rack ? "Lokasi Rak: *" . $order->rack->name . "*\n" : "")
+            . "\n*Rincian Layanan:*\n" . $itemLines . "\n\n"
+            . "Total Tagihan: *Rp " . number_format($order->total_cost, 0, ',', '.') . "*\n"
+            . "Sudah Dibayar: Rp " . number_format($order->amount_paid, 0, ',', '.') . "\n"
+            . ($remaining > 0 ? "Sisa Tagihan: *Rp " . number_format($remaining, 0, ',', '.') . "*\n" : "Status Bayar: *LUNAS*\n")
+            . "\nLacak status cucian Anda secara real-time di:\n" . $trackingUrl;
+        $waUrl = $waPhone ? ('https://wa.me/' . $waPhone . '?text=' . urlencode($waText)) : null;
     @endphp
 
     <div class="mx-auto">
@@ -93,8 +114,32 @@
                             <p class="text-2xl font-bold font-mono text-gray-900">{{ $order->order_number }}</p>
                             @if ($order->rack)
                                 <p
-                                    class="mt-2 text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded inline-flex items-center gap-1">
-                                    Lokasi: {{ $order->rack->name }}
+                                    class="mt-2 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg inline-flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-indigo-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                    Lokasi Rak: {{ $order->rack->name }}{{ $order->rack->location_description ? ' (' . $order->rack->location_description . ')' : '' }}
+                                </p>
+                            @elseif ($order->is_cancelled)
+                                <p
+                                    class="mt-2 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1 rounded-lg inline-flex items-center gap-1.5">
+                                    Lokasi Rak: Order Dibatalkan
+                                </p>
+                            @elseif ($order->status === 'selesai')
+                                <p
+                                    class="mt-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg inline-flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Lokasi Rak: Sudah diambil pelanggan
+                                </p>
+                            @else
+                                <p
+                                    class="mt-2 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-3 py-1 rounded-lg inline-flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Lokasi Rak: Belum ditempatkan (Tahap {{ $statusLabels[$order->status] ?? ucfirst($order->status) }})
                                 </p>
                             @endif
                         </div>
@@ -127,12 +172,13 @@
                             @php
                                 $reached = !$order->is_cancelled && $currentIndex !== false && $currentIndex >= $i;
                                 $isCurrent = !$order->is_cancelled && $order->status === $s;
+                                $isCompletedFinal = $s === 'selesai' && $isCurrent;
                             @endphp
                             <div class="flex flex-col items-center flex-shrink-0">
                                 <div
                                     class="w-9 h-9 rounded-full flex items-center justify-center border-2
-                                {{ $isCurrent ? 'bg-blue-600 border-blue-600 text-white shadow-md' : ($reached ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-200 text-gray-300') }}">
-                                    @if ($reached && !$isCurrent)
+                                {{ $isCompletedFinal ? 'bg-green-500 border-green-500 text-white shadow-md' : ($isCurrent ? 'bg-blue-600 border-blue-600 text-white shadow-md' : ($reached ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-200 text-gray-300')) }}">
+                                    @if ($reached && (!$isCurrent || $isCompletedFinal))
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3"
                                             viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -144,13 +190,20 @@
                                 </div>
                                 <p
                                     class="text-xs mt-1.5 font-medium text-center leading-tight w-14 mx-3 text-nowrap
-                                {{ $isCurrent ? 'text-blue-600' : ($reached ? 'text-green-600' : 'text-gray-400') }}">
+                                {{ $isCompletedFinal ? 'text-green-600' : ($isCurrent ? 'text-blue-600' : ($reached ? 'text-green-600' : 'text-gray-400')) }}">
                                     {{ strtoupper(str_replace('_', ' ', $s)) }}
                                 </p>
                             </div>
                             @if (!$loop->last)
+                                @php
+                                    $connectorReached =
+                                        !$order->is_cancelled && $currentIndex !== false && $currentIndex > $i;
+                                    $connectorActive =
+                                        !$order->is_cancelled && $currentIndex !== false && $currentIndex === $i;
+                                @endphp
                                 <div
-                                    class="flex-1 h-0.5 mx-1 mb-5 {{ !$order->is_cancelled && $currentIndex !== false && $currentIndex > $i ? 'bg-green-400' : 'bg-gray-200' }}">
+                                    class="status-connector flex-1 mx-1 mb-5 {{ $connectorReached ? 'status-connector-reached' : '' }} {{ $connectorActive ? 'status-connector-active' : '' }}"
+                                    aria-hidden="true">
                                 </div>
                             @endif
                         @endforeach
@@ -447,7 +500,7 @@
 
                 {{-- Action buttons --}}
                 <div class="space-y-3 print:hidden">
-                    @role('operator')
+                    @if (auth()->user()->hasTenantPermission('update-order-status'))
                         @if (!$order->is_cancelled && $nextStatus && $nextStatus !== 'selesai')
                             <form method="POST" action="{{ route('orders.status.update', $order) }}">
                                 @csrf @method('PATCH')
@@ -505,13 +558,42 @@
                                 @else
                                     <strong>rak penampungan</strong>
                                 @endif
-                                . Menandai order sebagai <strong>Selesai</strong> dilakukan kasir saat pelanggan
-                                mengambil barang.
+                                @if (auth()->user()->role === 'operator')
+                                    . Menandai order sebagai <strong>Selesai</strong> dilakukan kasir saat pelanggan
+                                    mengambil barang.
+                                @else
+                                    . Menandai order sebagai <strong>Selesai</strong> dilakukan saat pelanggan mengambil
+                                    barang.
+                                @endif
                             </p>
-                        @endif
-                    @endrole
 
-                    @role('kasir')
+                            @if ($racks->isNotEmpty())
+                                <form method="POST" action="{{ route('orders.rack.update', $order) }}"
+                                    class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 space-y-2">
+                                    @csrf @method('PATCH')
+                                    <label class="block text-xs font-bold text-indigo-900">
+                                        Pindah / Ubah Lokasi Rak Penyimpanan
+                                    </label>
+                                    <div class="flex items-center gap-2">
+                                        <select name="rack_id" required
+                                            class="flex-1 rounded-lg border-indigo-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 text-xs font-semibold text-gray-700 bg-white py-2 px-2.5 shadow-sm">
+                                            @foreach ($racks as $rack)
+                                                <option value="{{ $rack->id }}" {{ (int) $order->rack_id === (int) $rack->id ? 'selected' : '' }}>
+                                                    {{ $rack->name }}{{ $rack->location_description ? ' (' . $rack->location_description . ')' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit"
+                                            class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-sm whitespace-nowrap">
+                                            Simpan Rak
+                                        </button>
+                                    </div>
+                                </form>
+                            @endif
+                        @endif
+                    @endif
+
+                    @if (auth()->user()->role !== 'operator' && (auth()->user()->hasTenantPermission('update-order-status') || auth()->user()->hasTenantPermission('manage-payments') || auth()->user()->hasTenantPermission('manage-orders')))
                         @if (!$order->is_cancelled && $nextStatus === 'selesai')
                             <form method="POST" action="{{ route('orders.status.update', $order) }}"
                                 onsubmit="return confirm('Tandai order ini selesai karena pelanggan sudah mengambil barang?')">
@@ -535,7 +617,8 @@
                             @endif
                         @endif
 
-                        <a href="{{ route('payments.index', $order) }}"
+                        @if (auth()->user()->hasTenantPermission('manage-payments'))
+                            <a href="{{ route('payments.index', $order) }}"
                             class="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition shadow-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5"
                                 viewBox="0 0 24 24">
@@ -543,18 +626,31 @@
                                     d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                             {{ $paymentRows->isEmpty() ? 'Catat Pembayaran' : 'Kelola Pembayaran' }}
-                        </a>
+                            </a>
+                        @endif
 
-                        <button onclick="window.print()"
-                            class="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            Print Receipt
-                        </button>
+                        <div class="grid grid-cols-1 {{ $waUrl ? 'sm:grid-cols-2' : '' }} gap-2">
+                            <button type="button" onclick="window.print()"
+                                class="w-full flex items-center justify-center gap-2 py-3 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                Cetak Nota
+                            </button>
 
-                        @if (!$order->is_cancelled && $order->status === 'diterima')
+                            @if ($waUrl)
+                                <a href="{{ $waUrl }}" target="_blank" rel="noopener noreferrer"
+                                    class="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition shadow-sm">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824z"/>
+                                    </svg>
+                                    Kirim WA
+                                </a>
+                            @endif
+                        </div>
+
+                        @if (auth()->user()->hasTenantPermission('manage-orders') && !$order->is_cancelled && $order->status === 'diterima')
                             <form method="POST" action="{{ route('orders.cancel', $order) }}"
                                 onsubmit="return confirm('Yakin ingin membatalkan order ini?')">
                                 @csrf @method('PATCH')
@@ -564,95 +660,254 @@
                                 </button>
                             </form>
                         @endif
-                    @endrole
+                    @endif
                 </div>
 
             </div>
         </div>
     </div>
 
-    {{-- Print receipt --}}
-    <div class="hidden print:block p-8">
-        <div class="text-center mb-6">
-            <h1 class="text-2xl font-bold">{{ $appStoreName ?? 'Laundry Management System' }}</h1>
+    {{-- Print receipt (Optimized for 58mm & 80mm Thermal POS Printers) --}}
+    <div id="thermal-receipt" class="hidden print:block">
+        <div class="thermal-header">
+            <h1 class="thermal-store-name">{{ strtoupper($appStoreName ?? 'LAUNDIQO') }}</h1>
             @if(!empty($appStoreAddress) || !empty($appStoreCity))
-                <p class="text-xs text-gray-500">{{ $appStoreAddress ?? '' }} {{ $appStoreCity ? '('.$appStoreCity.')' : '' }}</p>
+                <p class="thermal-sub">{{ $appStoreAddress ?? '' }}{{ !empty($appStoreAddress) && !empty($appStoreCity) ? ', ' : '' }}{{ $appStoreCity ?? '' }}</p>
             @endif
-            <p class="text-sm text-gray-600">Struk Tanda Terima &bull; {{ now()->format('d/m/Y H:i') }}</p>
+            @if(!empty($appStorePhone))
+                <p class="thermal-sub">Telp/WA: {{ $appStorePhone }}</p>
+            @endif
+            <div class="thermal-divider-double"></div>
+            <p class="thermal-title">
+                @if ($order->status === 'selesai' && $order->payment_status === 'lunas')
+                    STRUK PENGAMBILAN &amp; LUNAS
+                @elseif ($paymentRows->isNotEmpty())
+                    NOTA &amp; BUKTI BAYAR ({{ strtoupper($payLabels[$order->payment_status] ?? 'DP') }})
+                @else
+                    NOTA TANDA TERIMA CUCIAN
+                @endif
+            </p>
+            <p class="thermal-sub">{{ now()->format('d/m/Y H:i') }}</p>
         </div>
 
-        {{-- Order Number / Code --}}
-        <div class="text-center mb-6">
-            <p class="text-center text-lg font-mono font-bold">{{ $order->order_number }}</p>
-            <p class="text-center text-sm text-gray-600 mt-1">Cek status online di website kami</p>
+        <div class="thermal-divider"></div>
+
+        {{-- Metadata Order --}}
+        <div class="thermal-meta">
+            <div class="thermal-row">
+                <span>No. Order</span>
+                <span class="thermal-bold">{{ $order->order_number }}</span>
+            </div>
+            <div class="thermal-row">
+                <span>Pelanggan</span>
+                <span class="thermal-bold">{{ $order->customer->full_name ?? '-' }}</span>
+            </div>
+            <div class="thermal-row">
+                <span>No. HP</span>
+                <span>{{ $order->customer->phone_number ?? '-' }}</span>
+            </div>
+            <div class="thermal-row">
+                <span>Tgl Masuk</span>
+                <span>{{ $order->received_date->format('d/m/Y') }}</span>
+            </div>
+            <div class="thermal-row">
+                <span>Est. Selesai</span>
+                <span>{{ $order->estimated_done_date->format('d/m/Y') }}</span>
+            </div>
+            <div class="thermal-row">
+                <span>Status Cucian</span>
+                <span class="thermal-bold">{{ strtoupper($statusLabels[$order->status] ?? $order->status) }}</span>
+            </div>
+            @if ($order->rack)
+                <div class="thermal-row">
+                    <span>Lokasi Rak</span>
+                    <span class="thermal-bold">{{ $order->rack->name }}</span>
+                </div>
+            @endif
+            @if ($order->status === 'selesai')
+                <div class="thermal-row">
+                    <span>Tgl Diambil</span>
+                    <span>{{ ($order->completed_at ?? now())->format('d/m/Y H:i') }}</span>
+                </div>
+            @endif
         </div>
 
-        <div class="border-t border-b border-dashed border-gray-400 py-3 mb-4 text-sm space-y-1">
-            <div class="flex justify-between"><span>No. Order</span><span
-                    class="font-mono font-bold">{{ $order->order_number }}</span></div>
-            <div class="flex justify-between"><span>Pelanggan</span><span>{{ $order->customer->full_name ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between"><span>Telepon</span><span>{{ $order->customer->phone_number ?? '-' }}</span>
-            </div>
-            <div class="flex justify-between"><span>Tgl
-                    Terima</span><span>{{ $order->received_date->format('d/m/Y') }}</span></div>
-            <div class="flex justify-between"><span>Est.
-                    Selesai</span><span>{{ $order->estimated_done_date->format('d/m/Y') }}</span></div>
+        <div class="thermal-divider"></div>
+
+        {{-- Daftar Item (Format 2 Baris Standar Thermal 58mm/80mm agar tidak terpotong) --}}
+        <div class="thermal-items">
+            @foreach ($order->items as $item)
+                <div class="thermal-item">
+                    <div class="thermal-item-name">{{ $item->service->name ?? '-' }}</div>
+                    <div class="thermal-row">
+                        <span>{{ $item->quantity }} {{ $item->service->unit ?? '' }} x {{ number_format($item->unit_price, 0, ',', '.') }}</span>
+                        <span class="thermal-bold">{{ number_format($item->subtotal, 0, ',', '.') }}</span>
+                    </div>
+                </div>
+            @endforeach
         </div>
-        <table class="w-full text-sm mb-4">
-            <thead>
-                <tr class="border-b border-gray-300">
-                    <th class="text-left py-1">Layanan</th>
-                    <th class="text-right py-1">Jml</th>
-                    <th class="text-right py-1">Harga</th>
-                    <th class="text-right py-1">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($order->items as $item)
-                    <tr>
-                        <td class="py-1">{{ $item->service->name ?? '-' }}</td>
-                        <td class="text-right py-1">{{ $item->quantity }} {{ $item->service->unit ?? '' }}</td>
-                        <td class="text-right py-1">{{ number_format($item->unit_price, 0, ',', '.') }}</td>
-                        <td class="text-right py-1">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        <div class="border-t border-dashed border-gray-400 pt-3 text-sm space-y-1">
-            <div class="flex justify-between font-bold text-base"><span>TOTAL</span><span>Rp
-                    {{ number_format($order->total_cost, 0, ',', '.') }}</span></div>
+
+        <div class="thermal-divider"></div>
+
+        {{-- Ringkasan Tagihan --}}
+        <div class="thermal-totals">
+            <div class="thermal-row thermal-total-main">
+                <span>TOTAL</span>
+                <span>Rp {{ number_format($order->total_cost, 0, ',', '.') }}</span>
+            </div>
             @if ($totalTendered > 0)
-                <div class="flex justify-between"><span>Uang Diterima</span><span>Rp
-                        {{ number_format($totalTendered, 0, ',', '.') }}</span></div>
-                <div class="flex justify-between"><span>Kembalian</span><span>Rp
-                        {{ number_format($totalChange, 0, ',', '.') }}</span></div>
+                <div class="thermal-row">
+                    <span>Tunai/Masuk</span>
+                    <span>Rp {{ number_format($totalTendered, 0, ',', '.') }}</span>
+                </div>
+                <div class="thermal-row">
+                    <span>Kembalian</span>
+                    <span>Rp {{ number_format($totalChange, 0, ',', '.') }}</span>
+                </div>
             @endif
-            <div class="flex justify-between"><span>Dibayar</span><span>Rp
-                    {{ number_format($order->amount_paid, 0, ',', '.') }}</span></div>
+            <div class="thermal-row">
+                <span>Total Dibayar</span>
+                <span>Rp {{ number_format($order->amount_paid, 0, ',', '.') }}</span>
+            </div>
             @if ($remaining > 0)
-                <div class="flex justify-between text-red-600"><span>Sisa</span><span>Rp
-                        {{ number_format($remaining, 0, ',', '.') }}</span></div>
+                <div class="thermal-row thermal-bold">
+                    <span>SISA TAGIHAN</span>
+                    <span>Rp {{ number_format($remaining, 0, ',', '.') }}</span>
+                </div>
+            @else
+                <div class="thermal-row thermal-bold">
+                    <span>STATUS BAYAR</span>
+                    <span>LUNAS</span>
+                </div>
             @endif
         </div>
-        <p class="text-center mt-6 text-xs text-gray-500">{{ $appReceiptFooter ?? 'Terima kasih atas kepercayaan Anda!' }}</p>
+
+        {{-- Riwayat Pembayaran --}}
+        @if ($paymentRows->isNotEmpty())
+            <div class="thermal-divider"></div>
+            <div class="thermal-payments">
+                <p class="thermal-bold" style="margin-bottom: 2px;">Riwayat Pembayaran:</p>
+                @foreach ($paymentRows as $row)
+                    <div class="thermal-row">
+                        <span>{{ $row['payment']->paid_at?->format('d/m H:i') }} ({{ strtoupper($row['payment']->method) }})</span>
+                        <span>{{ number_format($row['applied'], 0, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="thermal-divider"></div>
+
+        {{-- Footer Thermal --}}
+        <div class="thermal-footer">
+            @if ($order->status === 'selesai' && $order->payment_status === 'lunas')
+                <p class="thermal-bold">LUNAS - BARANG TELAH DIAMBIL</p>
+            @elseif ($remaining > 0 && !empty($appBankInfo))
+                <p class="thermal-bold">Transfer: {{ $appBankInfo }}</p>
+            @endif
+            <p style="margin-top: 4px;">Lacak status cucian online:</p>
+            <p class="thermal-bold" style="word-break: break-all;">{{ route('tracking.show', $order->order_number) }}</p>
+            <p style="margin-top: 6px;">{{ $appReceiptFooter ?? 'Terima kasih atas kepercayaan Anda!' }}</p>
+        </div>
     </div>
     <style>
         @media print {
+            @page {
+                size: 58mm auto;
+                margin: 0mm;
+            }
+
+            html, body {
+                width: 58mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                color: #000 !important;
+            }
+
             body * {
-                visibility: hidden
+                visibility: hidden;
             }
 
-            .print\:block,
-            .print\:block * {
-                visibility: visible
+            #thermal-receipt,
+            #thermal-receipt * {
+                visibility: visible;
+                color: #000 !important;
+                font-family: 'Courier New', Courier, monospace !important;
             }
 
-            .print\:block {
+            #thermal-receipt {
                 position: absolute;
                 left: 0;
                 top: 0;
-                width: 100%
+                width: 54mm;
+                max-width: 100%;
+                margin: 0 auto;
+                padding: 2mm 1.5mm 6mm 1.5mm;
+                font-size: 10pt;
+                line-height: 1.3;
+                background: #fff;
+            }
+
+            .thermal-header,
+            .thermal-footer {
+                text-align: center;
+            }
+
+            .thermal-store-name {
+                font-size: 12pt;
+                font-weight: 700;
+                margin: 0 0 2px 0;
+                line-height: 1.2;
+            }
+
+            .thermal-title {
+                font-size: 10pt;
+                font-weight: 700;
+                margin: 2px 0;
+            }
+
+            .thermal-sub {
+                font-size: 8.5pt;
+                margin: 1px 0;
+            }
+
+            .thermal-divider {
+                border-top: 1px dashed #000;
+                margin: 5px 0;
+            }
+
+            .thermal-divider-double {
+                border-top: 2px solid #000;
+                margin: 4px 0;
+            }
+
+            .thermal-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 4px;
+                font-size: 9pt;
+                margin: 1.5px 0;
+            }
+
+            .thermal-item {
+                margin: 3px 0;
+            }
+
+            .thermal-item-name {
+                font-size: 9.5pt;
+                font-weight: 700;
+            }
+
+            .thermal-bold {
+                font-weight: 700;
+            }
+
+            .thermal-total-main {
+                font-size: 10.5pt;
+                font-weight: 700;
+                margin: 3px 0;
             }
         }
     </style>

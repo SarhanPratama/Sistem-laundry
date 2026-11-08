@@ -3,33 +3,37 @@
 @section('page-title', 'Pembayaran')
 
 @section('content')
-<div class="mx-auto">
+<div class="mx-auto" x-data="{ search: @js($search ?? '') }">
 
-    <div class="mb-4">
-        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Pembayaran</h1>
-        <p class="text-sm text-gray-500 mt-1">Order yang menunggu pembayaran atau belum lunas.</p>
-    </div>
-
-    {{-- Search --}}
-    <form method="GET" action="{{ route('payments.list') }}" class="mb-8">
-        <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
-                </svg>
-            </div>
-            <input type="text" name="search" value="{{ $search ?? '' }}"
-                   placeholder="Cari nomor order atau nama pelanggan..."
-                   class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 transition-all">
-            @if($search)
-                <a href="{{ route('payments.list') }}" class="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </a>
-            @endif
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Pembayaran</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Order yang menunggu pembayaran atau belum lunas.</p>
         </div>
-    </form>
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            {{-- Live Search (Kanan Atas, konsisten dengan Order & Pelanggan) --}}
+            <form method="GET" action="{{ route('payments.list') }}" class="relative w-full sm:w-auto" x-on:submit.prevent>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                    </svg>
+                </div>
+                <input type="text" name="search" value="{{ $search ?? '' }}"
+                    placeholder="Cari order atau pelanggan..."
+                    class="pl-9 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
+                    x-model.debounce="search" />
+                <button type="button" x-show="search !== ''" x-cloak @click="search = ''"
+                    class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
 
     @if($orders->isEmpty())
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-16 text-gray-400">
@@ -47,7 +51,11 @@
                     $remaining = max(0, (float)$order->total_cost - (float)$order->amount_paid);
                     $isDP = $order->payment_status === 'dp';
                 @endphp
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow duration-200">
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow duration-200"
+                     x-show="search === '' || $el.dataset.orderNumber.toLowerCase().includes(search.toLowerCase()) || $el.dataset.customerName.toLowerCase().includes(search.toLowerCase()) || $el.dataset.customerPhone.toLowerCase().includes(search.toLowerCase())"
+                     data-order-number="{{ $order->order_number }}"
+                     data-customer-name="{{ $order->customer->full_name ?? '' }}"
+                     data-customer-phone="{{ $order->customer->phone_number ?? '' }}">
 
                     {{-- Card Header --}}
                     <div class="flex items-center justify-between mb-4">

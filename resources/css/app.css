@@ -1,3 +1,310 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    .marketing-container { @apply mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8; }
+    .marketing-nav { @apply sticky top-0 z-30 border-b border-slate-100 bg-white/95 backdrop-blur; }
+    .marketing-link { @apply text-sm font-semibold text-slate-600 transition hover:text-blue-600; }
+    .mobile-marketing-link { @apply rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50; }
+    .marketing-button { @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-blue-200; }
+    .marketing-button-primary { @apply bg-[#087FB8] text-white shadow-sm hover:bg-[#075C91]; }
+    .marketing-button-secondary { @apply border border-[#DBEAF3] bg-white text-[#0B1F3A] hover:border-[#08C6D8] hover:bg-[#F5FAFF]; }
+    .brand-mark { @apply inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-xs font-black text-white; }
+    .marketing-hero { @apply overflow-hidden bg-gradient-to-br from-white via-[#F5FAFF] to-cyan-50; }
+    .marketing-section { @apply overflow-hidden py-16 sm:py-24; }
+    .marketing-eyebrow { @apply text-xs font-black tracking-[0.18em] text-[#087FB8]; }
+    .marketing-heading { @apply mt-4 text-3xl font-black leading-tight tracking-tight text-[#0B1F3A] sm:text-4xl; }
+    .marketing-lead { @apply mt-4 text-lg leading-8 text-[#59708B]; }
+    .dashboard-preview { @apply overflow-hidden rounded-2xl border border-[#DBEAF3] bg-white shadow-2xl shadow-[#075C91]/10; }
+    .preview-stat { @apply rounded-xl border border-slate-100 bg-white p-3 shadow-sm; }
+    .preview-stat span { @apply block text-[10px] font-semibold text-slate-500; }
+    .preview-stat strong { @apply mt-1 block text-lg font-black text-[#142B49]; }
+    .preview-stat small { @apply mt-1 block text-[10px] font-semibold; }
+    .preview-row { @apply flex items-center gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0; }
+    .problem-card, .feature-card, .role-card { @apply rounded-2xl border border-[#DBEAF3] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg; }
+    .problem-icon, .feature-icon { @apply mb-5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-xs font-black text-blue-600; }
+    .problem-card h3, .feature-card h3, .role-card h3 { @apply text-lg font-extrabold text-[#142B49]; }
+    .problem-card p, .feature-card p, .role-card p { @apply mt-3 text-sm leading-6 text-slate-600; }
+    .workflow-item { @apply flex gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4; }
+    .workflow-item > span { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white; }
+    .workflow-item h3 { @apply font-bold text-[#142B49]; }
+    .workflow-item p { @apply mt-1 text-sm text-slate-600; }
+    .footer-heading { @apply mb-4 text-sm font-bold text-white; }
+    .footer-link { @apply block text-slate-400 transition hover:text-white; }
+    .form-label { @apply mb-2 block text-sm font-bold text-[#142B49]; }
+    .form-input { @apply w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100; }
+    .workflow-tab, .showcase-tab { @apply text-center sm:whitespace-nowrap border-b-2 border-transparent px-2.5 sm:px-3 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-[#59708B] transition hover:text-[#087FB8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#08C6D8]; }
+    .workflow-tab-active, .showcase-tab-active { @apply border-[#087FB8] text-[#087FB8]; }
+    .showcase-placeholder { @apply min-h-[260px] rounded-2xl border border-dashed border-[#08C6D8] bg-white p-8 shadow-sm; }
+    .showcase-placeholder strong { @apply mt-3 block text-xl font-black text-[#0B1F3A]; }
+    .showcase-placeholder span:not(:first-child) { @apply block h-3 rounded bg-[#F5FAFF]; }
+    .pricing-card { @apply rounded-2xl bg-white p-7 text-slate-900 shadow-xl; }
+    .pricing-card-featured { @apply ring-2 ring-[#08C6D8]; }
+    .pricing-toggle { @apply rounded-lg px-4 py-2 text-sm font-bold text-white/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#08C6D8]; }
+    .pricing-toggle-active { @apply bg-white text-[#075C91] shadow-sm; }
+    .marketing-reveal { @apply opacity-100; }
+}
+
+.status-connector {
+    height: 0.125rem;
+    min-width: 1.5rem;
+    background-image: repeating-linear-gradient(
+        to right,
+        #d1d5db 0,
+        #d1d5db 0.4rem,
+        transparent 0.4rem,
+        transparent 0.75rem
+    );
+    background-size: 0.75rem 100%;
+}
+
+.status-connector-reached {
+    background-image: repeating-linear-gradient(
+        to right,
+        #4ade80 0,
+        #4ade80 0.4rem,
+        transparent 0.4rem,
+        transparent 0.75rem
+    );
+}
+
+.status-connector-active {
+    background-image: repeating-linear-gradient(
+        to right,
+        #2563eb 0,
+        #2563eb 0.4rem,
+        transparent 0.4rem,
+        transparent 0.75rem
+    );
+    animation: status-connector-flow 900ms linear infinite;
+}
+
+@keyframes status-connector-flow {
+    from { background-position: 0 0; }
+    to { background-position: 0.75rem 0; }
+}
+
+[x-cloak] { display: none !important; }
+
+.marketing-reveal {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+    transition: opacity 650ms cubic-bezier(0.22, 1, 0.36, 1), transform 650ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 300ms ease, border-color 300ms ease;
+}
+.marketing-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+.marketing-reveal-delay, .reveal-delay-1 { transition-delay: 120ms; }
+.reveal-delay-2 { transition-delay: 240ms; }
+.reveal-delay-3 { transition-delay: 360ms; }
+.reveal-delay-4 { transition-delay: 480ms; }
+.reveal-delay-5 { transition-delay: 600ms; }
+
+@keyframes flow-down {
+    0%, 100% { transform: translateY(-2px); }
+    50% { transform: translateY(3px); }
+}
+
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes check-pop {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+.animate-flow-down {
+    animation: flow-down 1.8s ease-in-out infinite;
+}
+
+.animate-float-slow {
+    animation: float-slow 3.6s ease-in-out infinite;
+}
+
+.animate-check-pop {
+    animation: check-pop 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marketing-reveal { opacity: 1; transform: none; transition: none; }
+    .marketing-reveal.is-visible { transform: none; }
+    *, *::before, *::after { scroll-behavior: auto !important; }
+    .status-connector-active, .animate-flow-down, .animate-float-slow, .animate-check-pop { animation: none; }
+}
+
+/* SkyLearn foundation: friendly, high-contrast surfaces for the application UI. */
+.skylearn-app {
+    --sky: #3B82F6;
+    --sky-bright: #60A5FA;
+    --sky-deep: #1D4ED8;
+    --sky-soft: #DBEAFE;
+    --sun: #FBBF24;
+    --sun-deep: #D97706;
+    --leaf: #22C55E;
+    --leaf-soft: #DCFCE7;
+    --coral: #F87171;
+    --coral-soft: #FEE2E2;
+    --berry: #A855F7;
+    --ink: #0F172A;
+    --ink-muted: #475569;
+    --ink-subtle: #94A3B8;
+    --outline: #E2E8F0;
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", "Nunito Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.01em;
+}
+
+.skylearn-app aside {
+    border-color: var(--outline) !important;
+    box-shadow: 4px 0 18px rgba(15, 23, 42, 0.04);
+}
+
+.skylearn-app aside nav a,
+.skylearn-app aside button,
+.skylearn-app aside + div a {
+    border-radius: 12px;
+}
+
+.skylearn-app aside nav a[class*="bg-blue-600"] {
+    background: var(--sky) !important;
+    box-shadow: 0 8px 18px rgba(59, 130, 246, 0.18);
+}
+
+.skylearn-app aside nav a[class*="text-gray-600"],
+.skylearn-app aside button.text-gray-600 {
+    color: var(--ink-muted) !important;
+}
+
+.skylearn-app aside nav a[class*="text-gray-600"]:hover,
+.skylearn-app aside button.text-gray-600:hover {
+    background: var(--sky-soft) !important;
+    color: var(--sky-deep) !important;
+}
+
+.skylearn-app main {
+    color: var(--ink);
+}
+
+.skylearn-app .bg-gray-50,
+.skylearn-app .bg-slate-50 {
+    background-color: #F8FAFC !important;
+}
+
+.skylearn-app .bg-white {
+    background-color: #FFFFFF !important;
+}
+
+.skylearn-app [class*="border-gray-"],
+.skylearn-app [class*="border-slate-"] {
+    border-color: var(--outline) !important;
+}
+
+.skylearn-app [class*="rounded-xl"],
+.skylearn-app [class*="rounded-2xl"] {
+    border-radius: 20px;
+}
+
+.skylearn-app input,
+.skylearn-app select,
+.skylearn-app textarea {
+    border-radius: 12px !important;
+    border-color: var(--outline) !important;
+    background: #FFFFFF;
+    color: var(--ink);
+    min-height: 44px;
+    font-size: 16px;
+}
+
+.skylearn-app input:focus,
+.skylearn-app select:focus,
+.skylearn-app textarea:focus {
+    border-color: var(--sky-deep) !important;
+    box-shadow: 0 0 0 4px var(--sky-soft) !important;
+    outline: none;
+}
+
+.skylearn-app button[class*="bg-blue-600"],
+.skylearn-app a[class*="bg-blue-600"] {
+    background-color: var(--sky) !important;
+    border-radius: 16px;
+}
+
+.skylearn-app button[class*="bg-blue-600"]:hover,
+.skylearn-app a[class*="bg-blue-600"]:hover {
+    background-color: var(--sky-deep) !important;
+}
+
+.skylearn-app button[class*="bg-green-"],
+.skylearn-app a[class*="bg-green-"] {
+    background-color: var(--leaf) !important;
+}
+
+.skylearn-app .text-gray-900,
+.skylearn-app .text-gray-800 {
+    color: var(--ink) !important;
+}
+
+.skylearn-app .text-gray-700,
+.skylearn-app .text-gray-600 {
+    color: var(--ink-muted) !important;
+}
+
+.skylearn-app .text-gray-500,
+.skylearn-app .text-gray-400 {
+    color: var(--ink-subtle) !important;
+}
+
+.skylearn-app .text-blue-600,
+.skylearn-app .text-blue-500 {
+    color: var(--sky-deep) !important;
+}
+
+.skylearn-app .bg-blue-50 {
+    background-color: var(--sky-soft) !important;
+}
+
+.skylearn-app .bg-green-50 {
+    background-color: var(--leaf-soft) !important;
+}
+
+.skylearn-app .bg-red-50 {
+    background-color: var(--coral-soft) !important;
+}
+
+.skylearn-app .bg-yellow-50,
+.skylearn-app .bg-amber-50 {
+    background-color: #FEF3C7 !important;
+}
+
+.skylearn-app .text-green-600,
+.skylearn-app .text-green-700 {
+    color: #16A34A !important;
+}
+
+.skylearn-app .text-red-600,
+.skylearn-app .text-red-700 {
+    color: #DC2626 !important;
+}
+
+.skylearn-app .text-yellow-600,
+.skylearn-app .text-amber-600,
+.skylearn-app .text-amber-700 {
+    color: var(--sun-deep) !important;
+}
+
+.skylearn-app table {
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.skylearn-app .shadow,
+.skylearn-app .shadow-sm,
+.skylearn-app .shadow-md,
+.skylearn-app .shadow-lg,
+.skylearn-app .shadow-xl {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}

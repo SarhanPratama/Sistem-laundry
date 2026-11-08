@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Services\TenantContext;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCustomerRequest extends FormRequest
 {
@@ -13,9 +15,14 @@ class StoreCustomerRequest extends FormRequest
 
     public function rules(): array
     {
+        $uniqueRule = Rule::unique('customers', 'phone_number')->whereNull('deleted_at');
+        if (TenantContext::hasTenant()) {
+            $uniqueRule->where('tenant_id', TenantContext::getTenantId());
+        }
+
         return [
             'full_name'    => 'required|string|max:255',
-            'phone_number' => 'required|string|max:20|unique:customers,phone_number',
+            'phone_number' => ['required', 'string', 'max:20', $uniqueRule],
             'address'      => 'nullable|string|max:500',
         ];
     }

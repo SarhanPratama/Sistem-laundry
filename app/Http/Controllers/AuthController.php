@@ -13,6 +13,13 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->isSuperAdmin()) {
+                return redirect()->route('saas-admin.index');
+            }
+            if ($pendingInvoice = $user->tenant?->pendingInitialInvoice()) {
+                return redirect()->route('billing.invoice.show', $pendingInvoice);
+            }
             return redirect()->route('dashboard');
         }
 
@@ -69,6 +76,15 @@ class AuthController extends Controller
             'entity_type' => 'User',
             'entity_id' => $user->id,
         ]);
+
+        if ($user->isSuperAdmin()) {
+            return redirect()->route('saas-admin.index');
+        }
+
+        if ($pendingInvoice = $user->tenant?->pendingInitialInvoice()) {
+            return redirect()->route('billing.invoice.show', $pendingInvoice)
+                ->with('error', 'Silakan selesaikan pembayaran tagihan paket Anda terlebih dahulu untuk mengaktifkan akun usaha.');
+        }
 
         return redirect()->route('dashboard');
     }

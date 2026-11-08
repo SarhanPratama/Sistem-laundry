@@ -3,14 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\ServiceCategory;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ServiceCategoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $categories = ServiceCategory::withCount('services')->latest()->get();
-        return view('service-categories.index', compact('categories'));
+        $showTrashed = $request->boolean('trashed');
+        $trashedCount = ServiceCategory::onlyTrashed()->count();
+
+        $query = $showTrashed ? ServiceCategory::onlyTrashed() : ServiceCategory::query();
+        $categories = $query->withCount('services')->latest($showTrashed ? 'deleted_at' : 'created_at')->get();
+
+        return view('service-categories.index', compact('categories', 'showTrashed', 'trashedCount'));
     }
 
     public function create()
@@ -20,8 +27,16 @@ class ServiceCategoryController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = TenantContext::getTenantId();
         $request->validate([
-            'name'        => 'required|string|max:100|unique:service_categories,name',
+            'name'        => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('service_categories', 'name')
+                    ->whereNull('deleted_at')
+                    ->where(fn ($q) => $tenantId ? $q->where('tenant_id', $tenantId) : $q),
+            ],
             'description' => 'nullable|string|max:255',
         ], [
             'name.required' => 'Nama kategori wajib diisi.',
@@ -45,8 +60,17 @@ class ServiceCategoryController extends Controller
 
     public function update(Request $request, ServiceCategory $serviceCategory)
     {
+        $tenantId = TenantContext::getTenantId();
         $request->validate([
-            'name'        => 'required|string|max:100|unique:service_categories,name,' . $serviceCategory->id,
+            'name'        => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('service_categories', 'name')
+                    ->ignore($serviceCategory->id)
+                    ->whereNull('deleted_at')
+                    ->where(fn ($q) => $tenantId ? $q->where('tenant_id', $tenantId) : $q),
+            ],
             'description' => 'nullable|string|max:255',
         ], [
             'name.required' => 'Nama kategori wajib diisi.',
@@ -74,7 +98,22 @@ class ServiceCategoryController extends Controller
         $serviceCategory->delete();
 
         return redirect()->route('service-categories.index')
-            ->with('success', 'Kategori berhasil dihapus.');
+            ->with('success', 'Kategori berhasil dipindahkan ke tab Terhapus.');
+    }
+
+    public function restore($id)
+    {
+        $serviceCategory = ServiceCategory::onlyTrashed()->findOrFail($id);
+
+        if (ServiceCategory::where('name', $serviceCategory->name)->exists()) {
+            return redirect()->back()
+                ->with('error', "Tidak dapat memulihkan kategori karena nama \"{$serviceCategory->name}\" sudah digunakan oleh kategori aktif lain.");
+        }
+
+        $serviceCategory->restore();
+
+        return redirect()->route('service-categories.index', ['trashed' => 1])
+            ->with('success', "Kategori {$serviceCategory->name} berhasil dipulihkan.");
     }
 
     public function toggle(ServiceCategory $serviceCategory)

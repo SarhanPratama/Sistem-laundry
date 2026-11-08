@@ -51,25 +51,7 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'method' => ['required', 'in:tunai,transfer'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'is_dp'  => ['boolean'],
         ]);
-
-        $amount    = (float) $validated['amount'];
-        $totalCost = (float) $order->total_cost;
-        $remaining = $this->paymentService->remainingBalance($order);
-
-        // Requirement 6.5: show confirmation if amount exceeds total cost
-        $changeAmount  = $this->paymentService->calculateChangeFor($validated['method'], $amount, $remaining);
-        $newAmountPaid = (float) $order->amount_paid + ($amount - $changeAmount);
-        $wouldBeLunas  = $newAmountPaid >= $totalCost;
-        $isOverpaying  = $amount > $remaining;
-
-        if ($wouldBeLunas && $isOverpaying && !$request->boolean('confirmed')) {
-            return back()
-                ->withInput()
-                ->with('confirm_overpayment', true)
-                ->with('overpayment_amount', $amount - $remaining);
-        }
 
         try {
             $payment = $this->paymentService->recordPayment($order, $validated);

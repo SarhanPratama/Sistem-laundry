@@ -102,15 +102,15 @@ test('operator ditolak saat mencoba menutup order menjadi selesai', function () 
         ->and($order->completed_at)->toBeNull();
 });
 
-test('admin tidak dapat menutup order menjadi selesai', function () {
+test('admin dapat menutup order menjadi selesai', function () {
     $rack  = Rack::create(['name' => 'Rak A1', 'location_description' => 'Lorong Depan - Atas', 'is_active' => true]);
     $order = orderAtStatus('siap_diambil', 'lunas', $rack);
 
     $this->actingAs(userWithRole('admin'))
         ->patch(route('orders.status.update', $order), ['status' => 'selesai'])
-        ->assertForbidden();
+        ->assertRedirect();
 
-    expect($order->fresh()->status)->toBe('siap_diambil');
+    expect($order->fresh()->status)->toBe('selesai');
 });
 
 test('operator tidak bisa melompati tahap produksi', function () {
@@ -219,14 +219,12 @@ test('sidebar admin menampilkan tautan manajemen dan dashboard', function () {
         ->toContain('href="' . route('service-categories.index') . '"');
 });
 
-test('helper sidebar hanya mengambil isi nav, bukan body halaman', function () {
+test('sidebar admin memuat tautan order di dalam navigasi', function () {
     $sidebar = sidebarFor(userWithRole('admin'));
 
-    // orders.index hanya muncul di KPI card dashboard (di luar <nav>), jadi ini
-    // membuktikan helper benar-benar mengisolasi sidebar dan tidak mencocokkan body.
     expect($sidebar)
         ->toContain('<nav')
-        ->not->toContain('href="' . route('orders.index') . '"');
+        ->toContain('href="' . route('orders.index') . '"');
 });
 
 test('admin dapat melihat histori order yang sudah selesai', function () {
@@ -238,20 +236,20 @@ test('admin dapat melihat histori order yang sudah selesai', function () {
         ->assertSee($order->order_number);
 });
 
-test('operator dan kasir tidak melihat histori order selesai di papan kerja default', function () {
+test('operator dan kasir dapat melihat histori order selesai di tabel pelacakan', function () {
     $order = orderAtStatus('selesai', 'lunas');
 
     $this->actingAs(userWithRole('kasir'))
         ->get(route('orders.status'))
         ->assertOk()
-        ->assertDontSee($order->order_number);
+        ->assertSee($order->order_number);
 });
 
-test('halaman pelacakan menampilkan banner read-only untuk admin', function () {
+test('halaman pelacakan tidak menampilkan banner read-only untuk admin', function () {
     $this->actingAs(userWithRole('admin'))
         ->get(route('orders.status'))
         ->assertOk()
-        ->assertSee('Mode pemantauan');
+        ->assertDontSee('Mode pemantauan');
 });
 
 test('halaman pelacakan tidak menampilkan banner read-only untuk kasir', function () {
@@ -261,7 +259,7 @@ test('halaman pelacakan tidak menampilkan banner read-only untuk kasir', functio
         ->assertDontSee('Mode pemantauan');
 });
 
-test('halaman pelacakan tidak menampilkan tombol aksi untuk admin', function () {
+test('halaman pelacakan menampilkan tombol aksi untuk admin', function () {
     $rack  = Rack::create(['name' => 'Rak A1', 'location_description' => 'Lorong Depan - Atas', 'is_active' => true]);
     $order = orderAtStatus('siap_diambil', 'lunas', $rack);
 
@@ -270,15 +268,48 @@ test('halaman pelacakan tidak menampilkan tombol aksi untuk admin', function () 
         ->assertOk()
         ->getContent();
 
-    expect($html)->not->toContain(route('orders.status.update', $order));
+    expect($html)->toContain(route('orders.status.update', $order));
 });
 
-test('admin tidak dapat mengubah tahap produksi', function () {
+test('admin dapat mengubah tahap produksi', function () {
     $order = orderAtStatus('dicuci');
 
     $this->actingAs(userWithRole('admin'))
         ->patch(route('orders.status.update', $order), ['status' => 'dikeringkan'])
-        ->assertForbidden();
+        ->assertRedirect();
 
-    expect($order->fresh()->status)->toBe('dicuci');
+    expect($order->fresh()->status)->toBe('dikeringkan');
+});
+
+test('informasi lokasi rak selalu tampil jelas di detail order dan pelacakan status serta dapat diubah saat siap diambil', function () {
+    $rackA = Rack::create(['name' => 'A1', 'location_description' => 'Rak Depan Atas', 'is_active' => true]);
+    $rackB = Rack::create(['name' => 'B2', 'location_description' => 'Rak Tengah Bawah', 'is_active' => true]);
+
+    $orderProcessing = orderAtStatus('disetrika');
+    $orderReady = orderAtStatus('siap_diambil', 'lunas', $rackA);
+
+    $operator = userWithRole('operator');
+
+    // Detail order yang masih diproses tetap menampilkan status lokasi rak
+    $this->actingAs($operator)
+        ->get(route('orders.show', $orderProcessing))
+        ->assertOk()
+        ->assertSee('Lokasi Rak: Belum ditempatkan');
+
+    // Halaman pelacakan status menampilkan dropdown pilih rak untuk order yang berstatus disetrika
+    $this->actingAs($operator)
+        ->get(route('orders.status'))
+        ->assertOk()
+        ->assertSee('Pilih Rak')
+        ->assertSee('Rak A1');
+
+    // Pindah / ubah lokasi rak saat order berstatus siap_diambil
+    $this->actingAs($operator)
+        ->patch(route('orders.rack.update', $orderReady), [
+            'rack_id' => $rackB->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($orderReady->fresh()->rack_id)->toBe($rackB->id);
 });

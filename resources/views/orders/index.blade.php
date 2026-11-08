@@ -56,7 +56,7 @@
                         class="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64"
                         x-model.debounce="search" />
                 </form>
-                @role('kasir')
+                @role('kasir|admin')
                 <a href="{{ route('orders.create') }}"
                     class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition shadow-sm w-full sm:w-auto">
                     New Order
@@ -207,7 +207,21 @@
 
                         {{-- Footer --}}
                         <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <span class="text-xs text-gray-400">Total Cost</span>
+                            <div>
+                                @if ($order->payment_status === 'lunas')
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        LUNAS
+                                    </span>
+                                @elseif ($order->payment_status === 'dp')
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                        DP (Sisa Rp {{ number_format($order->remaining_amount, 0, ',', '.') }})
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-200">
+                                        BELUM BAYAR
+                                    </span>
+                                @endif
+                            </div>
                             <span class="text-base font-bold text-gray-900">
                                 Rp {{ number_format($order->total_cost, 0, ',', '.') }}
                             </span>

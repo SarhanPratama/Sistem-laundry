@@ -45,8 +45,9 @@
                 >
                     <option value="">-- Pilih Peran --</option>
                     <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>Admin</option>
-                    <option value="kasir" {{ old('role') === 'kasir' ? 'selected' : '' }}>Kasir</option>
-                    <option value="operator" {{ old('role') === 'operator' ? 'selected' : '' }}>Operator</option>
+                    @foreach ($tenantRoles as $tenantRole)
+                        <option value="{{ $tenantRole->slug }}" {{ old('role') === $tenantRole->slug ? 'selected' : '' }}>{{ $tenantRole->name }}</option>
+                    @endforeach
                 </select>
                 @error('role')
                     <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
